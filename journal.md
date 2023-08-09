@@ -2,6 +2,18 @@
 
 Stashing notes and stories around the development of the game. It's a semi-secret project, so we're not sharing the details with the world yet. But we're sharing the journey.
 
+## 09 August 2023
+
+The dopamine rush from solving the formula mystery was so strong that I couldn't stop myself from implementing the solution in Move. Even though I am completely tired and can't really do anything; multiple takes, 10 minutes is the max I can do per one attempt. But I did it. We now have a working solution for the pokemon algorithm in Move.
+
+Originally we planned to use `u8` as the type for everything, but now I think that having `u64` and upscale the values to keep precision is a better idea. We can always downscale the values to `u8` when we need to, but we can't upscale them back.
+
+There's more to the algorithm than just the damage calculation, but I think we can leave it for later. The damage calculation is the most important part, and we can get back to STAB (Same Type Attack Bonus) and other things later - building a matrix of type effectiveness is a challenge, but it would help to first settle on the moves we want to use for Capys.
+
+...and we still haven't figured what to do with bullsharks.
+
+- Damir
+
 ## 08 August 2023
 
 Had my last wisdom tooth removed (the last one was removed a week ago), and got an infection. Or at least my body started to react and fight something by giving me a fever, heavy head and a sore throat.

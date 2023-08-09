@@ -11,7 +11,7 @@ const CAPY_ONE = {
     // stats: [393, 288, 268, 348, 208 ],
     stats: [ 45, 49, 49, 65, 65, 45 ],
     types: [ "Grass", "Psychic" ],
-    level: 10
+    level: 13
 };
 
 /** Stats for the second Capy */
@@ -94,13 +94,22 @@ function isMoveSpecial(move) {
 function calculatePhysicalDamage(attackingCapy, move, defendingCapy, random = 217) {
 
     let lvl_mod = 2 * attackingCapy.level * 1 / 5 + 2;
+
+
+
     let move_pw = MOVE_POWER[MOVES.indexOf(move)];
-    let att_def = attackingCapy.stats[1] / defendingCapy.stats[2];
-    let res = (lvl_mod * move_pw * att_def / 50) + 2;
+    let atk_def = attackingCapy.stats[1] / defendingCapy.stats[2];
+    let result = (lvl_mod * move_pw * atk_def / 50) + 2;
+    let rnd_val = random / 255;
+    let eff_val = effectiveness(move, defendingCapy.types[0]);
 
-    console.log('level mod: %s; move power: %s; attack / defence: %s', lvl_mod, move_pw, att_def);
 
-    return res * effectiveness(move, defendingCapy.types[0]) * random / 255;
+    console.log([lvl_mod, atk_def, result, rnd_val, eff_val]);
+
+    console.log('level mod: %s; move power: %s; attack / defence: %s', lvl_mod, move_pw, atk_def);
+
+
+    return result * 1 * random / 255;
 }
 
 function calculateSpecialDamage(attackingCapy, move, defendingCapy, random = 217) {
@@ -113,6 +122,12 @@ function calculateSpecialDamage(attackingCapy, move, defendingCapy, random = 217
     return base * random / 255;
 }
 
-console.log('damage: %s', calculatePhysicalDamage(CAPY_TWO, "Fighting", CAPY_ONE, 255));
-console.log('damage: %s', calculatePhysicalDamage(CAPY_ONE, "Bug", CAPY_TWO, 255));
-console.log('damage: %s', calculatePhysicalDamage(CAPY_TWO, "Normal", CAPY_ONE, 240));
+console.log('\n[FIST ATTACK] -----');
+console.log('damage: %s', calculatePhysicalDamage(CAPY_ONE, "Normal", CAPY_TWO, 217));
+console.log('\n[SECOND ATTACK] -----');
+console.log('damage: %s', calculatePhysicalDamage(CAPY_TWO, "Flying", CAPY_ONE, 230));
+console.log('-----');
+
+
+// console.log('damage: %s', calculatePhysicalDamage(CAPY_ONE, "Bug", CAPY_TWO, 255));
+// console.log('damage: %s', calculatePhysicalDamage(CAPY_TWO, "Normal", CAPY_ONE, 240));
