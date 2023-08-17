@@ -132,6 +132,7 @@ export function calculatePhysicalDamage(attackingCapy, move, defendingCapy, crit
 
     return {
         DMG: damage,
+        MOVE: move,
         CRIT: crit_hit_mod,
         STAB: stab,
         TYPE: eff_val,
@@ -155,6 +156,7 @@ export function calculateSpecialDamage(attackingCapy, move, defendingCapy, criti
 
     return {
         DMG: damage,
+        MOVE: move,
         CRIT: crit_hit_mod,
         STAB: stab,
         TYPE: eff_val,

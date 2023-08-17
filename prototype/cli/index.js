@@ -94,8 +94,8 @@ async function botFight(input) {
         // print the results of the round
 
         console.table([
-            { name: 'Player', ...playerDamage, DMG: playerDamage.DMG.toFixed(0) },
-            { name: 'Bot', ...botDamage, DMG: botDamage.DMG.toFixed(0) },
+            { name: 'Player', ...playerDamage, DMG: +playerDamage.DMG.toFixed(0) },
+            { name: 'Bot', ...botDamage, DMG: +botDamage.DMG.toFixed(0) },
         ]);
 
         player.stats[0] -= botDamage.DMG;

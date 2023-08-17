@@ -10,6 +10,10 @@ While UIs and Web is too hard, CLI is something I can enjoy building, and using 
 
 ...and it's a success - for 3 hours straight I couldn't stop playing with a bot that was fighting against me. Each time random; and sometimes I would repeat the game to try a different move or check if the STAB (Same type attach bonus) works as expected.
 
+Not in the best shape today; but I'm happy with the progress.
+
+- Damir
+
 ## 10 August 2023
 
 When I pitched the idea to my manager he raised the question of funding - how can we make sure the players don't run out of money while playing? Is there a way for us to create an in-game economy that would "loop-in" the profits made by the game to fund the players? Just saying, something to think about - it can be a critical issue.
