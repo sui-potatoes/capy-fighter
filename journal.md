@@ -2,6 +2,24 @@
 
 Stashing notes and stories around the development of the game. It's a semi-secret project, so we're not sharing the details with the world yet. But we're sharing the journey.
 
+## 17 August 2023
+
+Decided to get back to the game again. For some reason I tend to think about cool graphics and UIs and how users will interact with the app but we haven't even implemented the pokemon algorithm yet.
+
+While UIs and Web is too hard, CLI is something I can enjoy building, and using a keyboard for tests is so much better than mouse. From the start I've built a way to test a random scenario but also to reproduce this scenario if the tester saves the seed. This way we can store the best and calibrate the balance according to critical values.
+
+...and it's a success - for 3 hours straight I couldn't stop playing with a bot that was fighting against me. Each time random; and sometimes I would repeat the game to try a different move or check if the STAB (Same type attach bonus) works as expected.
+
+## 10 August 2023
+
+When I pitched the idea to my manager he raised the question of funding - how can we make sure the players don't run out of money while playing? Is there a way for us to create an in-game economy that would "loop-in" the profits made by the game to fund the players? Just saying, something to think about - it can be a critical issue.
+
+Apart from that started trying out pixi.js - an engine that allows building 2D games in browser. Not much to say yet, we're just scratching the surface. As a first example of an app I created a custom font inspired by the "Space Invaders" (enhanced with some shadow), the font is converted into a sprite sheet and then used to render text. If someone asked me a month ago if I know what the spritesheets are I would have said "no", but now I know. And I know how to create and use them. Funny times!
+
+The best tutorial on pixi.js is this one: https://www.pixijselementals.com/#introduction, the guy knows what he's doing and I just love the personality in his writing.
+
+- Damir
+
 ## 09 August 2023
 
 The dopamine rush from solving the formula mystery was so strong that I couldn't stop myself from implementing the solution in Move. Even though I am completely tired and can't really do anything; multiple takes, 10 minutes is the max I can do per one attempt. But I did it. We now have a working solution for the pokemon algorithm in Move.

@@ -1,7 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-module heroes::pokemon_v1 {
+module pokemon::pokemon_v1 {
 
     /// Default scaling used for damage calculation.
     const DEFAULT_SCALING: u64 = 1_000_000_000;
@@ -127,10 +127,52 @@ module heroes::pokemon_v1 {
         }
     }
 
+    // === Getters ===
+
+    /// Return the scaling factor used for damage calculation.
+    public fun default_scaling(): u64 { DEFAULT_SCALING }
+
+    /// Return the HP stat of the given Pokemon.
+    public fun hp(stat: &Stats): u64 { stat.hp }
+
+    /// Return the attack stat of the given Pokemon.
+    public fun attack(stat: &Stats): u8 { stat.attack }
+
+    /// Return the defense stat of the given Pokemon.
+    public fun defense(stat: &Stats): u8 { stat.defense }
+
+    /// Return the special attack stat of the given Pokemon.
+    public fun special_attack(stat: &Stats): u8 { stat.special_attack }
+
+    /// Return the special defense stat of the given Pokemon.
+    public fun special_defense(stat: &Stats): u8 { stat.special_defense }
+
+    /// Return the speed stat of the given Pokemon.
+    public fun speed(stat: &Stats): u8 { stat.speed }
+
+    /// Return the level of the given Pokemon.
+    public fun level(stat: &Stats): u8 { stat.level }
+
+    // === Setters ===
+
+    /// Set the HP stat of the given Pokemon.
+    public fun decrease_hp(stat: &mut Stats, value: u64) {
+        if (value > stat.hp) {
+            stat.hp = 0;
+        } else {
+            stat.hp = stat.hp - value;
+        }
+    }
+
+    /// Increase the level of the given Pokemon.
+    public fun level_up(stat: &mut Stats) {
+        stat.level = stat.level + 1;
+    }
+
+    // === Tests ===
+
     #[test]
     fun test_physical() {
-        let scaling = 1000_000_000;
-
         let capy_one = new(45, 49, 49, 65, 65, 45, 13);
         let capy_two = new(40, 60, 30, 31, 31, 70, 10);
 

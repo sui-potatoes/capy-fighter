@@ -29,7 +29,7 @@ const CAPY_TWO = {
 // We're using the 5 gen damage formula
 // https://bulbapedia.bulbagarden.net/wiki/Damage#Damage_formula
 
-const MOVES = [
+export const MOVES = [
     "Normal", // physical attack
     "Fighting", // physical attack
     "Flying", // physical attack
@@ -47,7 +47,7 @@ const MOVES = [
     "Ice", // special attack
 ];
 
-const MOVE_POWER = [
+export const MOVE_POWER = [
     40, // Normal
     60, // Fighting
     35, // Flying
@@ -64,7 +64,7 @@ const MOVE_POWER = [
     95, // Ice
 ];
 
-const EFFECTIVENESS = [
+export const EFFECTIVENESS = [
     // normal, fighting, flying, poison, ground, rock, bug, ghost, steel, fire, water, grass, electric, psychic, ice, dragon, dark, fairy
     [1, 1, 1, 1, 1, 0.5, 1, 0, 1, 1, 1, 1, 1, 1, 1], // Normal
     [2, 1, 0.5, 0.5, 1, 2, 0.5, 0, 1, 1, 1, 1, 0.5, 2, 1], // Fighting
@@ -83,15 +83,15 @@ const EFFECTIVENESS = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2], // Dragon
 ];
 
-function effectiveness(move, type) {
+export function effectiveness(move, type) {
     return EFFECTIVENESS[MOVES.indexOf(move)][MOVES.indexOf(type)];
 }
 
-function isMoveSpecial(move) {
+export function isMoveSpecial(move) {
     return MOVES.indexOf(move) >= 8;
 }
 
-function calculatePhysicalDamage(attackingCapy, move, defendingCapy, random = 217) {
+export function calculatePhysicalDamage(attackingCapy, move, defendingCapy, random = 217) {
 
     let lvl_mod = 2 * attackingCapy.level * 1 / 5 + 2;
 
@@ -109,10 +109,10 @@ function calculatePhysicalDamage(attackingCapy, move, defendingCapy, random = 21
     console.log('level mod: %s; move power: %s; attack / defence: %s', lvl_mod, move_pw, atk_def);
 
 
-    return result * 1 * random / 255;
+    return result * stab * random / 255;
 }
 
-function calculateSpecialDamage(attackingCapy, move, defendingCapy, random = 217) {
+export function calculateSpecialDamage(attackingCapy, move, defendingCapy, random = 217) {
     let level_modifier = 2 * attackingCapy.level / 5 + 2;
     let move_power = effectiveness(move, defendingCapy.types[0]);
     let attack_modifier = attackingCapy.stats[3] / defendingCapy.stats[4];
