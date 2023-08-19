@@ -66,6 +66,7 @@ module game::the_game {
         // If the Gen is 3+, then the level is 1.
         let gen = sf::generation(capy);
         let level = if (gen > 2) { 1 } else { 10 - ((gen as u8) * 4) };
+        let types = vector[*vector::borrow(genes, 6) % 3]; // 0-2
 
         // For starters let's just take each gene and assign it to a stat.
         let stats = pokemon::new(
@@ -75,7 +76,8 @@ module game::the_game {
             *vector::borrow(genes, 3), // Special Attack
             *vector::borrow(genes, 4), // Special Defense
             *vector::borrow(genes, 5), // Speed
-            level                      // Level
+            level,                     // Level
+            types,                     // A single type of a Capy (represented as a vector)
         );
 
         // Now where do we want to store the stats? Well, for starters, we could
@@ -117,6 +119,7 @@ module game::the_game_tests {
 
     use pokemon::pokemon_v1 as pokemon;
     use game::the_game;
+    use game::battle;
 
     // With preparation done, we can now write some tests.
     // Phew, there's a lot to keep in mind while writing these...
@@ -131,11 +134,7 @@ module game::the_game_tests {
         the_game::register_capy(&mut kiosk, &kiosk_cap, capy_id, ctx);
 
         // now let's check that the stats are there
-        let stats = the_game::stats(&kiosk, capy_id);
-
-        // std::debug::print(&pokemon::hp(stats));
-        // std::debug::print(&pokemon::attack(stats));
-        // std::debug::print(&pokemon::defense(stats));
+        let _stats = the_game::stats(&kiosk, capy_id);
 
         return_kiosk_with_capy(kiosk, kiosk_cap, capy_id);
     }
@@ -160,27 +159,39 @@ module game::the_game_tests {
         let stats_one = *the_game::stats(&kiosk_one, capy_id_one);
         let stats_two = *the_game::stats(&kiosk_two, capy_id_two);
 
-        // print HP of the first Capy
-        std::debug::print(&(pokemon::hp(&stats_one) / pokemon::default_scaling()));
+        // to check our guess, let's do a comparison
+        assert!(pokemon::types(&stats_one) == vector[ 1 ], 0);
+        assert!(pokemon::types(&stats_two) == vector[ 2 ], 1);
 
-        // now we can battle! Capy two attacks! Move Power is 60, Random number is 240.
-        let damage = pokemon::physical_damage(&stats_two, &stats_one, 60, 240);
+        // let's try different moves - this one is the most effective - 19 points
+        // that means that the attacking Capy got a modifier of 2x for same type hit.
+        {
+            let stats_two = (copy stats_two);
+            let hp_before = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            battle::attack(&stats_one, &mut stats_two, 0, 240, false);
+            let hp_after = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            assert!((hp_before - 19) == hp_after, 0);
+        };
 
-        std::debug::print(&damage);
-        pokemon::decrease_hp(&mut stats_one, damage);
-        std::debug::print(&(pokemon::hp(&stats_one) / pokemon::default_scaling()));
+        {
+            let stats_two = (copy stats_two);
+            let hp_before = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            battle::attack(&stats_one, &mut stats_two, 1, 240, false);
+            let hp_after = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            assert!((hp_before - hp_after) == 10, 0);
+        };
 
-        // Okay, so that was a HIT! Now let's try to respond.
-        let damage = pokemon::physical_damage(&stats_one, &stats_two, 70, 217);
+        {
+            let stats_two = (copy stats_two);
+            let hp_before = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            battle::attack(&stats_one, &mut stats_two, 2, 240, false);
+            let hp_after = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            std::debug::print(&vector[ hp_before, hp_after ]);
+            assert!((hp_before - hp_after) == 18, 0);
+        };
 
-        std::debug::print(&damage);
-        std::debug::print(&(pokemon::hp(&stats_two) / pokemon::default_scaling()));
-        pokemon::decrease_hp(&mut stats_two, damage);
-        std::debug::print(&(pokemon::hp(&stats_two) / pokemon::default_scaling()));
+        // That should be enough for now. Let's clean up.
 
-        // 14 points! That was tough!
-        // We should stop here and come back to this later.
-        // Having this working is a good start.
 
         return_kiosk_with_capy(kiosk_one, kiosk_cap_one, capy_id_one);
         return_kiosk_with_capy(kiosk_two, kiosk_cap_two, capy_id_two);
