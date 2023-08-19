@@ -1,0 +1,11 @@
+[package]
+name = "game"
+version = "0.0.1"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "framework/testnet", override = true }
+suifrens = { git = "https://github.com/MystenLabs/apps.git", subdir = "suifrens/suifrens", rev = "testnet" }
+pokemon = { local = "../pokemon" }
+
+[addresses]
+game = "0x0"

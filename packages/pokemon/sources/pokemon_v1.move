@@ -1,6 +1,25 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+/// This module implements the 1st generation algorithm for Pokemon, the example
+/// and description of parameters can be found on the bulbapedia page:
+/// https://bulbapedia.bulbagarden.net/wiki/Damage
+///
+/// Some parts of the algorithm including:
+/// - The effectiveness of the move.
+/// - The STAB (Same Type Attack Bonus) of the move.
+/// ...are not included in the generic implementation because the Move
+/// themselves should be defined by an application. To support better
+/// calculation of extra modifiers, we return the damage as a scaled value.
+///
+/// Main functions of this algorithm:
+/// - `physical_damage`: calculate the damage of a physical move.
+/// - `special_damage`: calculate the damage of a special move.
+/// - `new`: create new instance of Stats.
+///
+/// All of the operations are performed on Stats. The `copy` allows for copying
+/// and modifying the value if needed. The `store` allows for storing the Stats
+/// as a dynamic field and the `drop` makes the cleanup easier.
 module pokemon::pokemon_v1 {
 
     /// Default scaling used for damage calculation.
@@ -10,15 +29,10 @@ module pokemon::pokemon_v1 {
     const EIncorrectRandomValue: u64 = 0;
     /// The MOVE_POWER parameter must be greater than 0.
     const EIncorrectMovePower: u64 = 1;
-    /// The scaling factor of the attacker and defender must be the same.
-    // const EScalingFactorMismatch: u64 = 2;
-    /// The scaling factor must be greater than 0.
-    const EIncorrectScalingFactor: u64 = 3;
-
 
     /// The stats of a Pokemon (basically, a structured collection of u8 values)
     /// Can be created using the `new` function.
-    struct Stats has store, drop {
+    struct Stats has copy, store, drop {
         /// The HP stat of the Pokemon: scaled by 10^9.
         hp: u64,
         /// The attack stat of the Pokemon.
@@ -44,10 +58,8 @@ module pokemon::pokemon_v1 {
         move_power: u8,
         random: u8,
     ): u64 {
-        // assert!(attacker.scaling == defender.scaling, EIncorrectScalingFactor);
         assert!(random >= 217 && random <= 255, EIncorrectRandomValue);
         assert!(move_power > 0, EIncorrectMovePower);
-        // assert!(scaling > 0, EIncorrectScalingFactor);
 
         damage(
             (attacker.level as u64),
@@ -114,7 +126,7 @@ module pokemon::pokemon_v1 {
         special_attack: u8,
         special_defense: u8,
         speed: u8,
-        level: u8
+        level: u8,
     ): Stats {
         Stats {
             hp: (hp as u64) * DEFAULT_SCALING,
