@@ -1,0 +1,662 @@
+櫻色
+Pale Purplish Vinaceous
+C0 M13 Y8 K0
+鵝色
+ときいろ
+Hermosa Pink
+C0 M30 Y6 K0
+肉色
+にくいろ
+Corinthian Pink
+C0 M35 Y15 K0
+一斤染
+いっこんぞめ
+Cameo Pink
+C10 M32 Y19 K0
+灰櫻
+Pale Cinnamon-Pink
+C3 M12 Y19 K0
+桜鼠
+Fawn
+C18 M31 Y30 K0
+薄梅鼠
+うすうめねずみ
+Pale Ecru-Drab
+C23 M25 Y27 K0
+
+---
+
+Light Brown Drab
+C8 M30 Y20 K25
+珊瑚珠色
+Coral Red
+C0 M55 Y40 K0
+柿色
+かきいろ
+Fresh Color
+C0 M53 Y45 K0
+洗朱
+Grenadine Pink
+C0 M62 Y58 K0
+浅紅
+Eosine Pink
+C0 M63 Y23 K0
+紅梅色
+こうばいいろ
+Spinel Red
+C0 M70 Y21 K0
+長㫪色
+58500/413
+0ld Rose
+C15 M70 Y40 K0
+緋褪色
+Eugenia Red
+C7 M76 Y60 K0
+
+---
+
+ひ
+Eugenia Red 2
+C0 M80 Y50 K10
+檜皮色
+Ubtil
+Raw Sienna
+C18 M58 Y100 K12
+柿渋色
+Vinaceous Tawny
+C17 M72 Y100 K6
+紅柿色
+Jasper Red
+C2 M83 Y100 K0
+赤色
+БЫШ3
+Spectrum Red
+C5 M100 Y100 K0
+朱色
+Red 0range
+C9 M90 Y100 K0
+雀茶
+Etruscan Red
+C16 M80 Y74 K6
+栗梅
+<558
+Burnt Sienna
+C22 M76 Y100 K15
+
+---
+
+0cher Red
+C18 M73 Y63 K20
+紅
+<NTEL)
+Scarlet
+C10 M95 Y72 K7
+臙脂色
+zhUlI3
+Carmine
+C0 M100 Y75 K16
+浅蘇芳
+Indian Lake
+C12 M89 Y35 K9
+牡丹色
+[Etchli3
+Rosolanc Purple
+C30 M90 Y33 K0
+苺色
+UI52413
+Pomegranate Purple
+C23 M100 Y50 K6
+小豆色
+Hydrangea Red
+C38 M90 Y70 K0
+柿色
+かきいろ
+Brick Red
+C22 M84 Y100 K18
+
+---
+
+Carmine Red
+C25 M95 Y80 K16
+紅樺色
+べにかばいろ
+Pompeian Red
+C18 M97 Y74 K19
+茜色
+Red
+C30 M100 Y70 K10
+鳶茶色
+とびちゃいろ
+Brown
+C35 M74 Y90 K35
+鳶色
+¿ULIS
+Hay's Russet
+C37 M85 Y87 K35
+紅海老茶
+2U5*
+Vandyke Red
+C32 M95 Y95 K33
+蘇芳色
+Pansy Purple
+C34 M100 Y60 K34
+海老茶色
+Pale Burnt Lake
+C25 M90 Y80 K40
+
+---
+
+紫
+きょうむらさき
+Violet Red
+C75 M100 Y50 K5
+栗皮色
+Vistoris Lake
+C40 M71 Y55 K40
+
+--- --- --- ---
+
+
+Sulphur Yellow
+C4 M4 Y28 K0
+
+Sea-foam Yellow
+C6 M6 Y29 K0
+
+Pale Lemon Yellow
+C0 M4 Y38 K0
+
+Naples Yellow
+C2 M7 Y44 K0
+白茶
+L55*
+Ivory Buff
+C8 M15 Y40 K0
+肌色
+d/UZ
+Seashell Pink
+C0 M19 Y23 K0
+淡香色
+うすこういろ
+Light Pinkish Cinnamon
+C0 M25 Y40 K0
+
+---
+
+Pinkish Cinnamon
+C5 M32 Y53 K0
+玉蜀忝色
+とうもろこしいろ
+Cinnamon Buff
+C0 M25 Y57 K0
+卵色
+Cream Yellow
+C0 M28 Y68 K0
+金茶
+Golden Yellow
+C2 M42 Y74 K0
+香色
+こういろ
+Vinaceous Cinnamon
+C4 M40 Y42 K0
+欵冬色
+0chraceous Salmon
+C15 M38 Y55 K0
+落葉色
+おちばいろ
+Isabella Color
+C15 M28 Y60 K10
+幹色
+Maple
+C5 M26 Y56 K20
+
+---
+
+桑色白茶
+くわいろしらちゃ
+0live Buff
+C16 M6 Y42 K12
+灰汁色
+b<LIS
+Ecru
+C20 M25 Y40 K6
+黄色
+きいろ
+Yellow
+C0 M0 Y100 K0
+金絲雀色
+Lemon Yellow
+C5 M0 Y85 K0
+鬱金色
+SChlIs
+Apricot Yellow
+C0 M10 Y100 K0
+淡青朽葉
+Pyrite Yellow
+C23 M25 Y80 K0
+油色
+0live 0cher
+C18 M26 Y90 K0
+山吹茶
+やまぶきちゃ
+Yellow 0cher
+C12 M28 Y88 K0
+
+---
+
+山吹色
+やまぶきいろ
+0range Yellow
+C0 M33 Y100 K0
+柑子色
+こうじいろ
+Yellow 0range
+C0 M45 Y100 K0
+深支子
+Apricot 0range
+C0 M55 Y75 K0
+橙色
+とうしょく
+0range
+C0 M68 Y100 K0
+杏色
+DoUs
+Peach Red
+C0 M80 Y90 K0
+蒲色
+English Red
+C13 M73 Y100 K0
+代赭色
+tELILALIZ
+Cinnamon Rufous
+C20 M60 Y82 K5
+飴色
+56613
+0range Rufous
+C18 M65 Y100 K8
+
+---
+
+Sulphine Yellow
+C24 M32 Y100 K4
+黄茶
+きちゃ
+Khaki
+C24 M45 Y100 K6
+菜種油色
+tatelalis
+Citron Yellow
+C35 M17 Y95 K0
+青朽葉
+あおくちば
+Citrine
+C36 M32 Y100 K7
+鶸茶
+ひわちゃ
+Dull Citrine
+C52 M45 Y78 K0
+黄海松茶
+きみるちゃ
+Buffy Citrine
+C42 M40 Y82 K8
+路考茶
+ろこうちゃ
+Dark Citrine
+C38 M34 Y67 K20
+利久茶
+Light Grayish 0live
+C43 M36 Y62 K19
+
+---
+
+Kronbergs Green
+C48 M35 Y70 K12
+橄欖色
+オリーブ
+0live
+C48 M38 Y100 K15
+銀煤竹
+ぎんすすたけ
+0range Citrine
+C28 M48 Y92 K24
+丁字茶
+ちょうじちゃ
+Sudan Brown
+C25 M60 Y65 K19
+海松茶
+765*
+0live Green
+C56 M40 Y85 K22
+鶯茶
+Light Brownish 0live
+C42 M46 Y73 K24
+生壁色
+なまかべいろ
+Deep Grayish 0live
+C50 M48 Y78 K37
+媚茶色
+こびちゃいろ
+Pale Raw Umber
+C46 M63 Y87 K32
+
+---
+
+Sepia
+C48 M60 Y100 K40
+赤白橡
+あかのしろつるばみ
+Madder Brown
+C36 M88 Y100 K38
+煙草色
+たばこいろ
+Mars Brown/Tobacco
+C39 M76 Y100 K47
+焦茶色
+こげちゃいろ
+Vandyke Brown
+C56 M71 Y97 K52
+
+--- --- --- ---
+
+US<3<
+Turquoise Green
+C29 M0 Y24 K0
+裏葉色
+55UZ
+Glaucous Green
+C30 M9 Y24 K0
+若苗色
+Dark Greenish Glaucous
+C30 M15 Y36 K0
+錆青磁
+Pale Turtle Green
+C25 M10 Y45 K0
+若草色
+Yellow Green
+C35 M0 Y72 K0
+鶸色
+UbLIS
+Light Green Yellow
+C26 M5 Y85 K0
+鶸萌木
+Night Green
+C52 M0 Y100 K0
+
+---
+
+苔色
+0live Yellow
+C40 M30 Y80 K0
+千草鼠
+Artemisia Green
+C57 M28 Y39 K8
+山鳩色
+やまばといろ
+Andover Green
+C60 M40 Y50 K10
+松葉色
+Rainette Green
+C42 M20 Y62 K28
+老綠
+Chromium Green
+C50 M16 Y58 K20
+木賊色
+とくさいろ
+Pistachio Green
+C64 M29 Y56 K6
+若竹色
+Sea Green
+C80 M0 Y51 K0
+青竹色
+Benzol Green
+C100 M15 Y55 K0
+
+---
+
+色
+Light Porcelain Green
+C86 M22 Y50 K3
+緑色
+Green
+C75 M21 Y73 K0
+草色
+Dull Viridian Green
+C90 M20 Y80 K0
+麴塵
+#<C
+0il Green
+C53 M28 Y100 K8
+柳茶
+やなぎちゃ
+Grape Green
+C41 M25 Y74 K0
+常磐色
+Diamine Green
+C87 M20 Y100 K10
+萌木色
+Cossack Green
+C76 M32 Y91 K18
+海松色
+Lincoln Green
+C60 M48 Y86 K37
+
+---
+
+Blackish 0live
+C56 M32 Y63 K55
+千斋茶
+Deep Slate 0live
+C76 M60 Y80 K62
+
+--- --- --- ---
+
+白
+Pale King's Blue
+C5 M1 Y9 K0
+水色
+Nile Blue
+C25 M0 Y10 K0
+瓶覗
+Pale King's Blue 2
+C33 M4 Y7 K0
+深川鼠
+ふかがわねすみ
+Light Glaucous Blue
+C35 M10 Y14 K0
+空色
+25613
+Salvia Blue
+C41 M25 Y10 K0
+青磁色
+Cobalt Green
+C42 M0 Y42 K0
+淡浅葱
+うすあさぎ
+Calamine Blue.
+C50 M0 Y20 K0
+
+---
+
+浅葱
+Venice Green
+C58 M0 Y30 K0
+錆浅葱
+さびあさぎ
+Pale Methy Blue
+C65 M12 Y30 K0
+花浅葱
+Cerulian Blue
+C84 M26 Y32 K0
+浅葱色
+あさぎいろ
+Peacock Blue
+C100 M19 Y43 K0
+納戸鼠
+Green Blue
+C82 M24 Y40 K3
+浅縹
+0lympic Blue
+C69 M44 Y10 K0
+青色
+あおいろ
+Blue
+C95 M54 Y0 K0
+納戸色
+Antwarp Blue
+C100 M40 Y30 K10
+
+---
+
+Helvetia Blue
+C100 M62 Y19 K10
+藍鼠
+Dark Medici Blue
+C70 M45 Y45 K15
+海松藍
+Dusky Green
+C100 M30 Y64 K50
+群青色
+</S
+Deep Lyons Blue
+C100 M85 Y15 K6
+花色
+[talIS
+Violet Blue
+C85 M79 Y38 K16
+縹色
+はなだいろ
+Vandar Poel's Blue
+C100 M73 Y43 K10
+深縹
+こきはなだ
+Dark Tyrian Blue
+C90 M66 Y36 K50
+褐色［勝色・搗色］
+563
+Dull Violet Black
+C100 M90 Y38 K50
+
+---
+
+Deep Indigo
+C100 M92 Y52 K60
+鉄色
+C0LIS
+Deep Slate Green
+C80 M50 Y60 K70
+
+--- --- --- ---
+
+Grayish Lavender
+C28 M28 Y0 K0
+薄色
+うすいろ
+Grayish Lavender 2
+C25 M33 Y20 K0
+紅藤
+Laelia Pink
+C20 M48 Y18 K0
+鳩羽紫
+はとばむらさき
+Lilac
+C28 M54 Y8 K0
+梅紫
+うめむらさき
+Eupatorium Purple
+C25 M79 Y12 K0
+浅紫
+うすむらさき
+Light Mauve
+C43 M62 Y5 K0
+半色
+Aconite Violet
+C39 M68 Y5 K0
+
+---
+
+Biliahe
+Dull Blue Violet
+C57 M60 Y17 K0
+二藍
+ふたあい
+Dark Soft Violet
+C70 M68 Y13 K0
+桔梗色
+ききょういろ
+Blue Violet
+C72 M80 Y0 K0
+濃桔梗色
+こいききょういろ
+Violet Ultramarine
+C85 M100 Y0 K0
+浅滅紫
+うすけしむらさき
+Purple Drab
+C38 M65 Y49 K26
+藤鼠
+Deep Violet/Plumbeous
+C61 M52 Y43 K7
+牡丹鼠
+ぼたんねずみ
+Vernonia Purple
+C42 M78 Y46 K15
+蒲萄色
+ZULIZ
+Dark Slate Purple
+C64 M85 Y60 K10
+
+---
+
+Taupe Brown
+C30 M70 Y35 K40
+桑染色
+Violet Carmine
+C64 M90 Y70 K10
+紫色
+むらさきいろ
+Violet
+C85 M90 Y18 K0
+菖蒲色
+Red Violet
+C76 M100 Y25 K15
+杜若色
+Cotinga Purple
+C66 M100 Y42 K40
+黒紫
+こくし
+Dusky Madder Violet
+C75 M100 Y46 K30
+紫紺
+しこん
+Dark Perilla Purple
+C77 M95 Y85 K20
+茄子紺
+tatTh
+Dull Purplish Black
+C85 M85 Y90 K20
+
+---
+
+White
+C0 M0 Y0 K0
+
+Trad
+Neutral Gray
+C29 M18 Y20 K0
+鼠色
+Mineral Gray
+C33 M18 Y25 K7
+灰色
+[aUilI3
+Warm Gray
+C37 M28 Y36 K3
+
+---
+
+石板色
+Slate Color
+C85 M70 Y62 K30
+黑色
+<363
+Black
+C20 M10 Y15 K100
