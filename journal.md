@@ -2,6 +2,20 @@
 
 Stashing notes and stories around the development of the game. It's a semi-secret project, so we're not sharing the details with the world yet. But we're sharing the journey.
 
+## 19-20 August 2023 - Weekend
+
+Finally got some time to myself to work on the game. With big Kiosk thing in and the new cohort (Kiosk-only) out, I can finally focus on the capy fighting again, especially since we now know that Capys will live in Kiosks - that adds constraints, but gives us a boost - we can utilize Kiosk extensions and build a game around Kiosks.
+
+Having a whole day to myself gives enough space for thoughts, and I had some time to think of how we'll implement the Kiosk Extension, not just to think but also to implement and record the implementation! I think most of developers don't feel comfortable coding "on record", and I'm no exception; but once started, I realized that having a commitment like this boosts my chances to fight ADHD. Well, anyways, the result is dope, I really enjoyed the process and have proven that it's doable, it can be fun, and you don't really need to talk - documentation does the job.
+
+---
+
+My Pixel Art journey continues and since I've decided to draw most of the art and assets for the game myself, I really need to rush working on them (as soon as we know what's needed ofc). In Paris I bought this book "A Dictionary of Color Combinations" - it's in Japanese, but the color names in English, it's a nice catalogue of colors in traditional Japanese designs and paintings grouped by months, types of design (eg kimono or a carpet). And since the moment I bought it I wanted to use it for the color scheme of the game.
+
+Unfortunately, I wasn't able to find a digital version, so the only version I have is paper. And it's not very convient to use it - even more - the colors are in CMYK and most of the pixel art applications use RGB; so finding the right combination, then looking through the color codes (and searching these colors), and only then converting them to a palette is a pain. So I decided to create a small utility to help me with this. Now we have GMP palette generator in our codebase - small but nice achievement. One less reason to procrastinate.
+
+- Damir
+
 ## 17 August 2023
 
 Decided to get back to the game again. For some reason I tend to think about cool graphics and UIs and how users will interact with the app but we haven't even implemented the pokemon algorithm yet.
