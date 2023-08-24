@@ -5,8 +5,12 @@
 /// stats of the Pokemon. It's intentionally separated from the `pokemon_v1`
 /// module to serve different algorithms in the future.
 module pokemon::stats {
-    /// Default scaling used in calculations.
-    const SCALING_FACTOR: u64 = 1_000_000_000;
+    /// The level can only be in [0; 100] range.
+    const EIncorrectLevel: u64 = 0;
+
+    /// Default scaling used in calculations. Needs to be tuned to not overflow
+    /// Attempt to use 10^9 resulted in an overflow, so decreasing it by an order
+    const SCALING_FACTOR: u64 = 1_000_000_00;
 
     /// The Stats of a Pokemon (basically, a structured collection of u8 values)
     /// Can be created using the `new` function.
@@ -45,6 +49,8 @@ module pokemon::stats {
         level: u8,
         types: vector<u8>,
     ): Stats {
+        assert!(level <= 100, EIncorrectLevel);
+
         Stats {
             hp: (hp as u64) * SCALING_FACTOR,
             attack,

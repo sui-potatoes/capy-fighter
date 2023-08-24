@@ -8,13 +8,12 @@ module game::the_game {
     use sui::tx_context::TxContext;
     use sui::kiosk_extension;
     use sui::object::ID;
-    use std::vector;
     use sui::bag;
 
-    use pokemon::stats::{Self, Stats};
-
-    use suifrens::suifrens::{Self as sf, SuiFren};
+    use suifrens::suifrens::SuiFren;
     use suifrens::capy::Capy;
+    use pokemon::stats::Stats;
+    use game::capy_stats;
 
     /// Trying to register a Capy that's not in the Kiosk.
     const EIncorrectCapyId: u64 = 0;
@@ -52,34 +51,14 @@ module game::the_game {
 
         // We can borrow Capy because we're not in a PTB environment.
         let capy = kiosk::borrow<SuiFren<Capy>>(self, cap, capy_id);
-        let genes = sf::genes(capy);
-
-        // To make game more engaging we can base our level off the Gen or Cohort.
-        // Why not try and make it more fun this way?
-        //
-        // If the Gen is 0, then the level is 10.
-        // If the Gen is 1, then the level is 6.
-        // If the Gen is 2, then the level is 2.
-        // If the Gen is 3+, then the level is 1.
-        let gen = sf::generation(capy);
-        let level = if (gen > 2) { 1 } else { 10 - ((gen as u8) * 4) };
-        let types = vector[*vector::borrow(genes, 6) % 3]; // 0-2
-
-        // For starters let's just take each gene and assign it to a stat.
-        let stats = stats::new(
-            *vector::borrow(genes, 0), // HP
-            *vector::borrow(genes, 1), // Attack
-            *vector::borrow(genes, 2), // Defense
-            *vector::borrow(genes, 3), // Special Attack
-            *vector::borrow(genes, 4), // Special Defense
-            *vector::borrow(genes, 5), // Speed
-            level,                     // Level
-            types,                     // A single type of a Capy
-        );
+        let stats = capy_stats::new(capy);
 
         let ext_storage_mut = kiosk_extension::storage_mut(Extension {}, self);
         bag::add(ext_storage_mut, capy_id, stats);
     }
+
+
+    // public fun
 
     // === Getters ===
 
@@ -154,7 +133,7 @@ module game::the_game_tests {
             let hp_before = (stats::hp(&stats_two) / stats::scaling());
             battle::attack(&stats_one, &mut stats_two, 0, 240, false);
             let hp_after = (stats::hp(&stats_two) / stats::scaling());
-            assert!((hp_before - 19) == hp_after, 0);
+            assert!((hp_before - 22) == hp_after, 0);
         };
 
         {
@@ -162,7 +141,7 @@ module game::the_game_tests {
             let hp_before = (stats::hp(&stats_two) / stats::scaling());
             battle::attack(&stats_one, &mut stats_two, 1, 240, false);
             let hp_after = (stats::hp(&stats_two) / stats::scaling());
-            assert!((hp_before - hp_after) == 10, 0);
+            assert!((hp_before - hp_after) == 12, 0);
         };
 
         {
@@ -170,8 +149,7 @@ module game::the_game_tests {
             let hp_before = (stats::hp(&stats_two) / stats::scaling());
             battle::attack(&stats_one, &mut stats_two, 2, 240, false);
             let hp_after = (stats::hp(&stats_two) / stats::scaling());
-            std::debug::print(&vector[ hp_before, hp_after ]);
-            assert!((hp_before - hp_after) == 18, 0);
+            assert!((hp_before - hp_after) == 20, 0);
         };
 
         return_kiosk_with_capy(kiosk_one, kiosk_cap_one, capy_id_one);

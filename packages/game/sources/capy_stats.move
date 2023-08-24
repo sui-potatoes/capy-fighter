@@ -16,7 +16,7 @@ module game::capy_stats {
     const MEDIAN: u8 = 50;
 
     /// Generate the stats for the Capy for the first time.
-    public fun stats(capy: &SuiFren<Capy>): Stats {
+    public fun new(capy: &SuiFren<Capy>): Stats {
         let genes = sf::genes(capy);
         let gen = sf::generation(capy);
         let level = if (gen > 2) { 1 } else { 10 - ((gen as u8) * 4) };
@@ -98,11 +98,11 @@ module game::stats_test {
         skip(ctx); skip(ctx); skip(ctx); skip(ctx);
 
         let capy = sf::mint_for_testing(ctx);
-        let stats = capy_stats::stats(&capy);
+        let _stats = capy_stats::new(&capy);
 
-        std::debug::print(&capy_stats::strength_index(&stats));
-        std::debug::print(sf::genes(&capy));
-        std::debug::print(&stats);
+        // std::debug::print(&capy_stats::strength_index(&stats));
+        // std::debug::print(sf::genes(&capy));
+        // std::debug::print(&stats);
 
         sf::burn_for_testing(capy);
     }
