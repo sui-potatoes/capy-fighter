@@ -11,7 +11,7 @@ module game::the_game {
     use std::vector;
     use sui::bag;
 
-    use pokemon::pokemon_v1::{Self as pokemon, Stats};
+    use pokemon::stats::{Self, Stats};
 
     use suifrens::suifrens::{Self as sf, SuiFren};
     use suifrens::capy::Capy;
@@ -69,7 +69,7 @@ module game::the_game {
         let types = vector[*vector::borrow(genes, 6) % 3]; // 0-2
 
         // For starters let's just take each gene and assign it to a stat.
-        let stats = pokemon::new(
+        let stats = stats::new(
             *vector::borrow(genes, 0), // HP
             *vector::borrow(genes, 1), // Attack
             *vector::borrow(genes, 2), // Defense
@@ -105,7 +105,6 @@ module game::the_game {
     }
 }
 
-// Time to write some tests, shall we?
 #[test_only]
 module game::the_game_tests {
     use sui::object::{Self, ID};
@@ -117,7 +116,7 @@ module game::the_game_tests {
     use suifrens::suifrens as sf;
     use suifrens::capy::Capy;
 
-    use pokemon::pokemon_v1 as pokemon;
+    use pokemon::stats;
     use game::the_game;
     use game::battle;
 
@@ -160,38 +159,35 @@ module game::the_game_tests {
         let stats_two = *the_game::stats(&kiosk_two, capy_id_two);
 
         // to check our guess, let's do a comparison
-        assert!(pokemon::types(&stats_one) == vector[ 1 ], 0);
-        assert!(pokemon::types(&stats_two) == vector[ 2 ], 1);
+        assert!(stats::types(&stats_one) == vector[ 1 ], 0);
+        assert!(stats::types(&stats_two) == vector[ 2 ], 1);
 
         // let's try different moves - this one is the most effective - 19 points
         // that means that the attacking Capy got a modifier of 2x for same type hit.
         {
             let stats_two = (copy stats_two);
-            let hp_before = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            let hp_before = (stats::hp(&stats_two) / stats::scaling());
             battle::attack(&stats_one, &mut stats_two, 0, 240, false);
-            let hp_after = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            let hp_after = (stats::hp(&stats_two) / stats::scaling());
             assert!((hp_before - 19) == hp_after, 0);
         };
 
         {
             let stats_two = (copy stats_two);
-            let hp_before = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            let hp_before = (stats::hp(&stats_two) / stats::scaling());
             battle::attack(&stats_one, &mut stats_two, 1, 240, false);
-            let hp_after = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            let hp_after = (stats::hp(&stats_two) / stats::scaling());
             assert!((hp_before - hp_after) == 10, 0);
         };
 
         {
             let stats_two = (copy stats_two);
-            let hp_before = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            let hp_before = (stats::hp(&stats_two) / stats::scaling());
             battle::attack(&stats_one, &mut stats_two, 2, 240, false);
-            let hp_after = (pokemon::hp(&stats_two) / pokemon::default_scaling());
+            let hp_after = (stats::hp(&stats_two) / stats::scaling());
             std::debug::print(&vector[ hp_before, hp_after ]);
             assert!((hp_before - hp_after) == 18, 0);
         };
-
-        // That should be enough for now. Let's clean up.
-
 
         return_kiosk_with_capy(kiosk_one, kiosk_cap_one, capy_id_one);
         return_kiosk_with_capy(kiosk_two, kiosk_cap_two, capy_id_two);

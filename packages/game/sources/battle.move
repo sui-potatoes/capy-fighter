@@ -17,7 +17,8 @@
 /// What to expect? Better stats distribution of course!
 module game::battle {
     use std::vector;
-    use pokemon::pokemon_v1::{Self as pokemon, Stats};
+    use pokemon::pokemon_v1 as pokemon;
+    use pokemon::stats::{Self, Stats};
 
     /// Trying to use a non-existent Move (only use 0, 1, 2).
     const EWrongMove: u64 = 0;
@@ -49,16 +50,16 @@ module game::battle {
     /// 0-2, so we need to scale them to 0-20 to apply in the uint calculations.
     const EFF_SCALING: u64 = 10;
 
-    // show some love to yourself...
-    #[test_only] use std::string::utf8;
+    // TODO: remove once debug is over
+    use std::string::utf8;
 
     /// It magically wraps the HP decreasing.
     public fun attack(attacker: &Stats, defender: &mut Stats, _move: u64, rng: u8, debug: bool) {
         assert!(_move < 3, EWrongMove);
 
         // Currently Capys only have 1 type. Pokemons can have up to 2 types.
-        let attacker_type = (*vector::borrow(&pokemon::types(attacker), 0) as u64);
-        let defender_type = (*vector::borrow(&pokemon::types(defender), 0) as u64);
+        let attacker_type = (*vector::borrow(&stats::types(attacker), 0) as u64);
+        let defender_type = (*vector::borrow(&stats::types(defender), 0) as u64);
 
         let move_power = *vector::borrow(&MOVES_POWER, _move);
         let raw_damage = pokemon::physical_damage(
@@ -99,6 +100,6 @@ module game::battle {
         };
 
         // Now apply the damage to the defender (can get to 0, save operation)
-        pokemon::decrease_hp(defender, raw_damage);
+        stats::decrease_hp(defender, raw_damage);
     }
 }
