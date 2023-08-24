@@ -15,6 +15,7 @@ module game::capy_stats {
     /// The median value for a gene. This is used to balance out the stats.
     const MEDIAN: u8 = 50;
 
+    /// Generate the stats for the Capy for the first time.
     public fun stats(capy: &SuiFren<Capy>): Stats {
         let genes = sf::genes(capy);
         let gen = sf::generation(capy);
@@ -38,6 +39,27 @@ module game::capy_stats {
             hp, attack, defense,
             special_attack, special_defense,
             speed, level, types,
+        )
+    }
+
+    /// Returns the sum of two stats, values are added to each other. Currently
+    /// doing it in a very straightforward way, but there should be a check for
+    /// u64 overflow (however, given that HP stat has a limit, it's very unlikely).
+    ///
+    /// The intention of this function is to add modifiers when an item is used.
+    public fun sum(stat1: &Stats, stat2: &Stats): Stats {
+        let types = stats::types(stat1);
+        vector::append(&mut types, stats::types(stat2));
+
+        stats::new(
+            (((stats::hp(stat1) + stats::hp(stat2)) / stats::scaling()) as u8),
+            stats::attack(stat1) + stats::attack(stat2),
+            stats::defense(stat1) + stats::defense(stat2),
+            stats::special_attack(stat1) + stats::special_attack(stat2),
+            stats::special_defense(stat1) + stats::special_defense(stat2),
+            stats::speed(stat1) + stats::speed(stat2),
+            stats::level(stat1) + stats::level(stat2),
+            types,
         )
     }
 

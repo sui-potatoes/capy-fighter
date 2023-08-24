@@ -52,9 +52,6 @@ module game::the_game {
 
         // We can borrow Capy because we're not in a PTB environment.
         let capy = kiosk::borrow<SuiFren<Capy>>(self, cap, capy_id);
-
-        // Now we need to generate stats for it. We will use Capy genes as the
-        // base for the stats + maybe add some randomness to it (TBD).
         let genes = sf::genes(capy);
 
         // To make game more engaging we can base our level off the Gen or Cohort.
@@ -77,23 +74,11 @@ module game::the_game {
             *vector::borrow(genes, 4), // Special Defense
             *vector::borrow(genes, 5), // Speed
             level,                     // Level
-            types,                     // A single type of a Capy (represented as a vector)
+            types,                     // A single type of a Capy
         );
 
-        // Now where do we want to store the stats? Well, for starters, we could
-        // store them in the Extension. That would simplify things but won't
-        // allow trading Capys with their stats inherited just yet. The game state
-        // will be "per Kiosk" and reset when a Capy is leaving Kiosk (however old
-        // stats will stay here...). We'll figure it out.
         let ext_storage_mut = kiosk_extension::storage_mut(Extension {}, self);
         bag::add(ext_storage_mut, capy_id, stats);
-
-        // Now that we added the stats into the Extension, we're good to go. The
-        // battle can happen between two Kiosks without the need to access the
-        // stored assets (users are free to mutate, dress etc). It's not a problem
-        // right now as we're heading towards an MVP, but we'll need to figure
-        // out how to lock assets when the battle is happening and attach stats
-        // to Capys in the Kiosk.
     }
 
     // === Getters ===
