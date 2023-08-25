@@ -3,8 +3,12 @@
 
 /// The Game is installed as an extension to the Kiosk to reuse the storage,
 /// store player's assets' state and lock items when necessary for the game.
+///
+/// Game is not diving to much into the implementation and instead is using the
+/// primitives defined throughout the application to implement business logic.
+/// Think of it as the main interface and a router for the application.
 module game::the_game {
-    use std::option::{Self, Option};
+    // use std::option::{Self, Option};
 
     use sui::kiosk::{Self, Kiosk, PurchaseCap, KioskOwnerCap};
     use sui::tx_context::TxContext;
@@ -38,8 +42,8 @@ module game::the_game {
         capy_id: ID,
         /// The stats of the Capy.
         stats: Stats,
-        /// The opponent's Kiosk address.
-        opponent: Option<address>
+        // The opponent's Kiosk address.
+        // opponent: Option<address>
     }
 
     /// Dynamic field for the current battle. There can be only 1 battle at a time.

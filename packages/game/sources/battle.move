@@ -99,7 +99,7 @@ module game::battle {
             raw_damage = raw_damage * STAB_BONUS / EFF_SCALING;
         };
 
-        // Now apply the damage to the defender (can get to 0, save operation)
+        // Now apply the damage to the defender (can get to 0, safe operation)
         stats::decrease_hp(defender, raw_damage);
     }
 }
