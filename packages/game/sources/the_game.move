@@ -4,15 +4,19 @@
 /// The Game is installed as an extension to the Kiosk to reuse the storage,
 /// store player's assets' state and lock items when necessary for the game.
 module game::the_game {
-    use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
+    use std::option::{Self, Option};
+
+    use sui::kiosk::{Self, Kiosk, PurchaseCap, KioskOwnerCap};
     use sui::tx_context::TxContext;
+    use sui::object::{Self, ID};
     use sui::kiosk_extension;
-    use sui::object::ID;
     use sui::bag;
 
     use suifrens::suifrens::SuiFren;
     use suifrens::capy::Capy;
     use pokemon::stats::Stats;
+
+    use matchmaker::matchmaker::{Self as match, Order, Match};
     use game::capy_stats;
 
     /// Trying to register a Capy that's not in the Kiosk.
@@ -21,6 +25,28 @@ module game::the_game {
     const ENotOwner: u64 = 1;
     /// Trying to access the game without the extension being installed.
     const EExtensionNotInstalled: u64 = 2;
+    /// Trying to accept the battle in a wrong Kiosk.
+    const EWrongKiosk: u64 = 3;
+
+    /// The BattleOrder is a currently open battle that is being played. Can only
+    /// be resolved by the matchmaking application (and canceled). Once the
+    /// Matchmaking module finds the right opponent, it will start the battle.
+    struct BattleOrder has store {
+        /// The PurchaseCap that is used to lock the Capy (not for sale).
+        purchase_cap: PurchaseCap<SuiFren<Capy>>,
+        /// The ID of the Capy that is participating in the battle.
+        capy_id: ID,
+        /// The stats of the Capy.
+        stats: Stats,
+        /// The opponent's Kiosk address.
+        opponent: Option<address>
+    }
+
+    /// Dynamic field for the current battle. There can be only 1 battle at a time.
+    struct Battle has store, copy, drop {}
+
+    /// One Time Witness for the game.
+    struct THE_GAME has drop {}
 
     // === Setting Up Extension ===
 
@@ -34,6 +60,17 @@ module game::the_game {
     /// Add an extension to the Kiosk.
     public fun add(kiosk: &mut Kiosk, cap: &KioskOwnerCap, ctx: &mut TxContext) {
         kiosk_extension::add(Extension {}, kiosk, cap, PERMISSIONS, ctx)
+    }
+
+    // === Module Initializer ===
+
+    /// For the matchmaking to work we need to create an instance of the
+    /// Matchmaker, so the battle orders can be placed and matched.
+    fun init(otw: THE_GAME, ctx: &mut TxContext) {
+        sui::package::claim_and_keep(otw, ctx);
+        sui::transfer::public_share_object(
+            match::create_matchmaker(Extension {}, ctx)
+        );
     }
 
     // === The Game Logic: Register Capy ===
@@ -57,8 +94,69 @@ module game::the_game {
         bag::add(ext_storage_mut, capy_id, stats);
     }
 
+    // === Matchmaking ===
 
-    // public fun
+    /// Put a Capy for a battle.
+    public fun search_match(
+        self: &mut Kiosk, cap: &KioskOwnerCap, capy_id: ID, ctx: &mut TxContext
+    ): Order {
+        // To lock a Capy we "purchase it" with a `PurchaseCap`. We don't intend
+        // to sell the Capy - never. It's just a way to lock it for the duration
+        // of the battle.
+        let stats = *stats(self, capy_id);
+        let purchase_cap = kiosk::list_with_purchase_cap(self, cap, capy_id, 0, ctx);
+        let ext_storage_mut = kiosk_extension::storage_mut(Extension {}, self);
+
+        bag::add(ext_storage_mut, Battle {}, BattleOrder {
+            purchase_cap,
+            capy_id,
+            stats
+        });
+
+        match::new_order(Extension {}, object::id_to_address(&object::id(self)))
+    }
+
+    /// We don't really want to have the battle happening somewhere else, game
+    /// extension seems ideal for the purpose. So we need to figure out how to
+    /// bring another user's Kiosk and its BattleOrder here.
+    public fun start_battle(
+        self: &mut Kiosk, match: Match
+    ) {
+        let kiosk = match::start_match(Extension {}, match);
+        assert!(object::id_to_address(&object::id(self)) == kiosk, EWrongKiosk);
+
+        // What do we do now?
+        // How does the battle work?
+    }
+
+    /// The battle is over, we can remove the BattleOrder.
+    /// There needs to be some authorization here; that the battle is over.
+    /// Note: Every authorization scheme is the way to version an application.
+    public fun end_battle(self: &mut Kiosk, cap: &KioskOwnerCap) {
+        assert!(kiosk::has_access(self, cap), ENotOwner);
+
+        let ext_storage_mut = kiosk_extension::storage_mut(Extension {}, self);
+        let BattleOrder {
+            purchase_cap,
+            capy_id,
+            stats: _
+        } = bag::remove(ext_storage_mut, Battle {});
+
+        // Just to remember that stats are currently in the Kiosk Extension.
+        let _stats = bag::borrow_mut<ID, Stats>(ext_storage_mut, capy_id);
+
+        // Some XP calculation is happening somewhere. If we ever decide to make
+        // the Stats permanent and not per Kiosk.
+        let _capy_mut = kiosk::borrow_mut<SuiFren<Capy>>(self, cap, capy_id);
+
+
+        // Unlock the Capy so it is now free! Yay!
+        kiosk::return_purchase_cap(self, purchase_cap);
+    }
+
+    // === The Actual Battle ===
+
+    // How is it happening? Can we delegate? Where is it stored?
 
     // === Getters ===
 
