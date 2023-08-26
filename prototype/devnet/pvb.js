@@ -11,7 +11,7 @@ import inquirer from "inquirer";
 
 // === Sui Devnet Environment ===
 
-const pkg = "0x52a7fd0155248a9b05006b9f6fa900a0098c61c0b99f4ce3bde4cdc1bf5e2fe4";
+const pkg = config.packageId;
 
 /** The built-in client for the application */
 const client = new SuiClient({ url: getFullnodeUrl("devnet") });
@@ -28,7 +28,7 @@ const address = keypair.toSuiAddress();
 // === CLI Bits ===
 
 program
-  .name("capymon-devnet")
+  .name("capymon-devnet-player-vs-bot")
   .description("A prototype for Capymon on devnet")
   .version("0.0.1");
 

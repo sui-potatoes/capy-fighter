@@ -1,7 +1,8 @@
 {
-    "packageId": "0x52a7fd0155248a9b05006b9f6fa900a0098c61c0b99f4ce3bde4cdc1bf5e2fe4",
+    "packageId": "0x24138d36f41440aed65ad2b0bb1ad84557db5f8417a9507a14f5f2cb138e0523",
     "modules": [
         "arena",
+        "arena_pvp",
         "battle",
         "pokemon_v1",
         "stats"
