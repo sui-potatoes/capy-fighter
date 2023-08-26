@@ -2,6 +2,12 @@
 
 Stashing notes and stories around the development of the game. It's a semi-secret project, so we're not sharing the details with the world yet. But we're sharing the journey.
 
+## 25 August - Friday Night
+
+Got stuck implementing multiplayer functionality. Each time when there's a very inconvient (in blockchain / development terms) case, I just lag - can't move, can't progress, everything is just super annoying. Every message system that requires 2 fields - one for each of the players makes me vomit. It would be great to find a way to encode the fighting logic in an elegant way but I haven't discovered one yet. Perhaps, there's something I can do as an exercise - build a simpler game prototype where players move after each other, and that would shed some light on how to implement multiplayer functionality.
+
+- Damir
+
 ## 19-20 August 2023 - Weekend
 
 Finally got some time to myself to work on the game. With big Kiosk thing in and the new cohort (Kiosk-only) out, I can finally focus on the capy fighting again, especially since we now know that Capys will live in Kiosks - that adds constraints, but gives us a boost - we can utilize Kiosk extensions and build a game around Kiosks.
