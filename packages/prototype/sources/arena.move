@@ -49,13 +49,13 @@ module prototype::arena {
         battle::attack(
             &arena.player_stats,
             &mut arena.bot_stats,
-            (_move as u64), player_rng, true
+            (_move as u64), player_rng, false
         );
 
         battle::attack(
             &arena.bot_stats,
             &mut arena.player_stats,
-            (bot_move as u64), bot_rng, true
+            (bot_move as u64), bot_rng, false
         );
 
         arena.round = arena.round + 1;
@@ -75,8 +75,9 @@ module prototype::arena {
     }
 
     fun generate_stats(seed: vector<u8>): Stats {
-        let level = *vector::borrow(&seed, 8) % 10;
-        let level = if (level == 0) { 1 } else { level };
+        // let level = *vector::borrow(&seed, 8) % 10;
+        // let level = if (level == 0) { 1 } else { level };
+        let level = 10;
         stats::new(
             10 + smooth(*vector::borrow(&seed, 0)),
             smooth(*vector::borrow(&seed, 1)),
@@ -142,8 +143,8 @@ module prototype::arena {
         attack(&mut arena, 0, ctx);
         attack(&mut arena, 1, ctx);
 
-        std::debug::print(&arena.player_stats);
-        std::debug::print(&arena.bot_stats);
+        // std::debug::print(&arena.player_stats);
+        // std::debug::print(&arena.bot_stats);
 
         transfer::share_object(arena);
     }

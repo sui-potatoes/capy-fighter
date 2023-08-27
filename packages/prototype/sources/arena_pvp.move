@@ -26,11 +26,20 @@ module prototype::arena_pvp {
     const EMoveAlreadySubmitted: u64 = 4;
     /// Not a Player.
     const EUnknownSender: u64 = 5;
+    /// Invalid commitment; the hash of the move doesn't match the commitment.
+    const EInvalidCommitment: u64 = 6;
 
+    /// Struct containing information about the Player.
     struct Player has store, drop {
+        /// The stats of the Player's Pokemon.
         stats: Stats,
+        /// The player's address.
         account: address,
-        next_attack: Option<u8>,
+        /// Stores the hashed move.
+        next_attack: Option<vector<u8>>,
+        /// Helps track the round. So that a second reveal can be performed
+        /// without rushing into async execution.
+        next_round: u8
     }
 
     struct Arena has key {
@@ -47,13 +56,33 @@ module prototype::arena_pvp {
         is_over: bool
     }
 
+    /// Emitted when a new Arena is created and available for joining.
     struct ArenaCreated has copy, drop { arena: address }
+    /// Emitted when a player joins the Arena.
     struct PlayerJoined has copy, drop { arena: address }
-    struct PlayerHit    has copy, drop { arena: address }
+    /// Emitted when a player commits the hit move.
+    struct PlayerCommit has copy, drop { arena: address }
+    /// Emitted when a player reveals the result and hits the other player.
+    struct PlayerReveal has copy, drop {
+        arena: address,
+        _move: u8
+    }
+    /// Emitted when both players have hit and the round is over.
+    struct RoundResult  has copy, drop {
+        arena: address,
+        attacker_hp: u64,
+        defender_hp: u64
+    }
 
     /// Create and share a new arena.
     entry fun new(ctx: &mut TxContext) {
-        transfer::share_object(new_(ctx));
+        let arena = new_(ctx);
+
+        sui::event::emit(ArenaCreated {
+            arena: object::uid_to_address(&arena.id)
+        });
+
+        transfer::share_object(arena);
     }
 
     /// Join an existing arena and start the battle.
@@ -61,7 +90,8 @@ module prototype::arena_pvp {
         option::fill(&mut arena.player_two, Player {
             stats: generate_stats(derive(arena.seed, 1)),
             account: tx_context::sender(ctx),
-            next_attack: option::none()
+            next_attack: option::none(),
+            next_round: 0
         });
 
         sui::event::emit(PlayerJoined {
@@ -70,7 +100,7 @@ module prototype::arena_pvp {
     }
 
     /// Attack the other player.
-    entry fun attack(arena: &mut Arena, _move: u8, ctx: &mut TxContext) {
+    entry fun commit(arena: &mut Arena, commitment: vector<u8>, ctx: &mut TxContext) {
         assert!(!arena.is_over, EArenaOver);
         assert!(option::is_some(&arena.player_two), EArenaNotReady);
 
@@ -78,57 +108,106 @@ module prototype::arena_pvp {
 
         // If it's a P1 attack
         if (player == arena.player_one.account) {
+
             assert!(option::is_none(&arena.player_one.next_attack), EMoveAlreadySubmitted);
-            arena.player_one.next_attack = option::some(_move);
+            arena.player_one.next_attack = option::some(commitment);
+
         } else if (player == option::borrow(&arena.player_two).account) {
+
             let p2 = option::borrow_mut(&mut arena.player_two);
             assert!(option::is_none(&p2.next_attack), EMoveAlreadySubmitted);
-            p2.next_attack = option::some(_move);
+            p2.next_attack = option::some(commitment);
+
         } else {
             abort EUnknownSender // we don't know who you are
         };
 
-        sui::event::emit(PlayerHit {
+        sui::event::emit(PlayerCommit {
             arena: object::uid_to_address(&arena.id)
         });
     }
 
-    /// Perform a round of the battle.
-    entry fun round(arena: &mut Arena, _ctx: &mut TxContext) {
+    /// Each of the players needs to reveal their move; so that the round can
+    /// be calculated. The last player to reveal bumps the round.
+    entry fun reveal(
+        arena: &mut Arena,
+        _move: u8,
+        salt: vector<u8>,
+        ctx: &mut TxContext
+    ) {
         assert!(option::is_some(&arena.player_two), EArenaNotReady);
         assert!(!arena.is_over, EArenaOver);
 
-        let player1_rng = hit_rng(arena.seed, 3, arena.round);
-        let player2_rng = hit_rng(arena.seed, 4, arena.round);
+        // The player that is revealing.
+        let player = tx_context::sender(ctx);
+        let is_p1 = is_player_one(arena, player);
 
-        let p1 = &mut arena.player_one;
-        let p2 = option::borrow_mut(&mut arena.player_two);
+        // Get both players (mutably).
+        let (attacker, defender) = if (is_player_one(arena, player)) {
+            (&mut arena.player_one, option::borrow_mut(&mut arena.player_two))
+        } else if (is_player_two(arena, player)) {
+            (option::borrow_mut(&mut arena.player_two), &mut arena.player_one)
+        } else {
+            abort EUnknownSender // we don't know who you are
+        };
 
-        assert!(option::is_some(&p1.next_attack), EPlayerOneNotReady);
-        assert!(option::is_some(&p2.next_attack), EPlayerTwoNotReady);
+        // Check if the player is allowed to reveal and if they haven't already.
+        assert!(option::is_some(&attacker.next_attack), EPlayerOneNotReady);
+        assert!(attacker.next_round == arena.round, EMoveAlreadySubmitted);
 
-        let _move = *option::borrow(&p1.next_attack);
+        let commitment = vector[ _move ];
+        vector::append(&mut commitment, salt);
+        let commitment = sui::hash::blake2b256(&commitment);
+
+        assert!(&commitment == option::borrow(&attacker.next_attack), EInvalidCommitment);
+
         battle::attack(
-            &p1.stats, &mut p2.stats, (_move as u64), player1_rng, false
+            &attacker.stats,
+            &mut defender.stats,
+            (_move as u64),
+            hit_rng(commitment, 2, arena.round),
+            false
         );
 
-        let _move = *option::borrow(&p2.next_attack);
-        battle::attack(
-            &p2.stats, &mut p1.stats, (_move as u64), player2_rng, false
-        );
+        attacker.next_attack = option::none();
+        attacker.next_round = arena.round + 1;
 
-        p1.next_attack = option::none();
-        p2.next_attack = option::none();
+        let next_round_cond = option::is_none(&defender.next_attack)
+            && (defender.next_round == (arena.round + 1));
 
-        let is_over = (stats::hp(&p1.stats) == 0) || (stats::hp(&p2.stats) == 0);
+        sui::event::emit(PlayerReveal {
+            arena: object::uid_to_address(&arena.id),
+            _move: _move
+        });
 
-        arena.is_over = is_over;
-        arena.round = arena.round + 1;
+        // If both players have revealed, then the round is over; the last one
+        // to reveal bumps the round.
+        if (next_round_cond) {
+            arena.round = arena.round + 1;
+
+            sui::event::emit(RoundResult {
+                arena: object::uid_to_address(&arena.id),
+                attacker_hp: stats::hp(&attacker.stats),
+                defender_hp: stats::hp(&defender.stats),
+            });
+        };
     }
 
+    // === Internal ===
+
+    fun is_player_one(arena: &Arena, player: address): bool {
+        player == arena.player_one.account
+    }
+
+    fun is_player_two(arena: &Arena, player: address): bool {
+        option::is_some(&arena.player_two) && (player == option::borrow(&arena.player_two).account)
+    }
+
+    /// Generate stats for a Pokemon from a seed.
     fun generate_stats(seed: vector<u8>): Stats {
-        let level = *vector::borrow(&seed, 8) % 10;
-        let level = if (level == 0) { 1 } else { level };
+        // let level = *vector::borrow(&seed, 8) % 10;
+        // let level = if (level == 0) { 1 } else { level };
+        let level = 10;
         stats::new(
             10 + smooth(*vector::borrow(&seed, 0)),
             smooth(*vector::borrow(&seed, 1)),
@@ -141,25 +220,29 @@ module prototype::arena_pvp {
         )
     }
 
+    /// Generate a random number for a hit in the range [217; 255]
     fun hit_rng(seed: vector<u8>, path: u8, round: u8): u8 {
         let value = *vector::borrow(&derive(seed, path), (round as u64));
         ((value % (255 - 217)) + 217)
     }
 
+    /// Smooth a value in the range [10; 50]
     fun smooth(value: u8): u8 {
-        let value = ((value % 60) + 60) / 2;
-        if (value == 0) {
+        let value = ((value % 50) + 50) / 2;
+        if (value < 10) {
             10
         } else {
             value
         }
     }
 
+    /// Derive a new seed from a previous seed and a path.
     fun derive(seed: vector<u8>, path: u8): vector<u8> {
         vector::push_back(&mut seed, path);
         sui::hash::blake2b256(&seed)
     }
 
+    /// Create a new arena.
     fun new_(ctx: &mut TxContext): Arena {
         let addr = tx_context::fresh_object_address(ctx);
         let seed = sui::hash::blake2b256(&bcs::to_bytes(&addr));
@@ -174,14 +257,11 @@ module prototype::arena_pvp {
         let player_one = Player {
             stats: player_stats,
             account: tx_context::sender(ctx),
-            next_attack: option::none()
+            next_attack: option::none(),
+            next_round: 0
         };
 
         let player_two = option::none();
-
-        sui::event::emit(ArenaCreated {
-            arena: object::uid_to_address(&id)
-        });
 
         Arena {
             id, seed, player_one, player_two, round: 0, is_over: false
@@ -191,6 +271,12 @@ module prototype::arena_pvp {
     #[test_only] use sui::test_scenario as ts;
     #[test_only] const ALICE: address = @0x1;
     #[test_only] const BOB: address = @0x2;
+    #[test_only] const SALT: vector<u8> = b"this_is_salt";
+    #[test_only] fun hashed_move(_move: u8): vector<u8> {
+        let commitment = vector[ _move ];
+        vector::append(&mut commitment, SALT);
+        sui::hash::blake2b256(&commitment)
+    }
 
     #[test] fun test_new_and_attack() {
         let scenario = ts::begin(ALICE);
@@ -205,48 +291,108 @@ module prototype::arena_pvp {
         ts::next_tx(test, BOB); {
             let arena = ts::take_shared<Arena>(test);
             join(&mut arena, ts::ctx(test));
+
+            assert!(option::is_some(&arena.player_two), 0);
+            assert!(option::borrow(&arena.player_two).next_round == 0, 1);
+            assert!(arena.round == 0, 2);
+
             ts::return_shared(arena);
         };
 
-        // Alice attacks.
+        // Alice submits a committed move
         ts::next_tx(test, ALICE); {
             let arena = ts::take_shared<Arena>(test);
-            attack(&mut arena, 0, ts::ctx(test));
+            commit(&mut arena, hashed_move(0), ts::ctx(test));
+
+            assert!(option::is_some(&arena.player_one.next_attack), 0);
+            assert!(arena.player_one.next_round == 0, 1);
+            assert!(arena.round == 0, 2);
+
             ts::return_shared(arena);
         };
 
-        // Bob attacks.
+        // Bob submits a committed move.
         ts::next_tx(test, BOB); {
             let arena = ts::take_shared<Arena>(test);
-            attack(&mut arena, 1, ts::ctx(test));
+            commit(&mut arena, hashed_move(1), ts::ctx(test));
+
+            assert!(option::is_some(&option::borrow(&arena.player_two).next_attack), 0);
+            assert!(option::borrow(&arena.player_two).next_round == 0, 1);
+            assert!(arena.round == 0, 1);
+
             ts::return_shared(arena);
         };
 
-        // Bob calculates the round.
+        // Bob reveals the commitment.
         ts::next_tx(test, BOB); {
             let arena = ts::take_shared<Arena>(test);
-            round(&mut arena, ts::ctx(test));
+            reveal(&mut arena, 1, SALT, ts::ctx(test));
+
+            assert!(option::is_none(&option::borrow(&arena.player_two).next_attack), 0);
+            assert!(option::borrow(&arena.player_two).next_round == 1, 1);
+            assert!(arena.round == 0, 2);
+
+            ts::return_shared(arena);
+        };
+
+        // Alice reveals the commitment; and the new round starts.
+        ts::next_tx(test, ALICE); {
+            let arena = ts::take_shared<Arena>(test);
+            reveal(&mut arena, 0, SALT, ts::ctx(test));
+
+            assert!(option::is_none(&arena.player_one.next_attack), 0);
+            assert!(option::is_none(&option::borrow(&arena.player_two).next_attack), 1);
+            assert!(arena.player_one.next_round == 1, 2);
+            assert!(arena.round == 1, 3);
+
             ts::return_shared(arena);
         };
 
         // Bob attacks
         ts::next_tx(test, BOB); {
             let arena = ts::take_shared<Arena>(test);
-            attack(&mut arena, 2, ts::ctx(test));
+            commit(&mut arena, hashed_move(2), ts::ctx(test));
+
+            assert!(option::is_some(&option::borrow(&arena.player_two).next_attack), 0);
+            assert!(option::borrow(&arena.player_two).next_round == 1, 1);
+            assert!(arena.round == 1, 1);
+
             ts::return_shared(arena);
         };
 
         // Alice attacks
         ts::next_tx(test, ALICE); {
             let arena = ts::take_shared<Arena>(test);
-            attack(&mut arena, 1, ts::ctx(test));
+            commit(&mut arena, hashed_move(1), ts::ctx(test));
+
+            assert!(option::is_some(&arena.player_one.next_attack), 0);
+            assert!(arena.player_one.next_round == 1, 1);
+            assert!(arena.round == 1, 1);
+
             ts::return_shared(arena);
         };
 
-        // Alice calculates the round.
+        // Alice reveals the commitment.
         ts::next_tx(test, ALICE); {
             let arena = ts::take_shared<Arena>(test);
-            round(&mut arena, ts::ctx(test));
+            reveal(&mut arena, 1, SALT, ts::ctx(test));
+
+            assert!(option::is_none(&arena.player_one.next_attack), 0);
+            assert!(arena.player_one.next_round == 2, 1);
+            assert!(arena.round == 1, 2);
+
+            ts::return_shared(arena);
+        };
+
+        // Bob reveals the commitment; and the new round starts.
+        ts::next_tx(test, BOB); {
+            let arena = ts::take_shared<Arena>(test);
+            reveal(&mut arena, 2, SALT, ts::ctx(test));
+
+            assert!(option::is_none(&option::borrow(&arena.player_two).next_attack), 0);
+            assert!(option::borrow(&arena.player_two).next_round == 2, 1);
+            assert!(arena.round == 2, 2);
+
             ts::return_shared(arena);
         };
 

@@ -8,11 +8,14 @@ import { fromB64, isValidSuiObjectId } from "@mysten/sui.js/utils";
 import { program } from "commander";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import inquirer from "inquirer";
-import config from "./config.json" assert { type: "json" };
+// import config from "./config.json" assert { type: "json" };
+// import { bcs } from "@mysten/sui.js/bcs";
+import blake2b from "blake2b";
 
 // === Sui Devnet Environment ===
 
-const pkg = config.packageId;
+const pkg =
+  "0x50ba26c7949d7b2cadd88b17dbe37997bb92a0bebdc495c2bbf120fe147857cd"; // config.packageId;
 
 /** The built-in client for the application */
 const client = new SuiClient({ url: getFullnodeUrl("devnet") });
@@ -52,6 +55,18 @@ program
 
 program.parse(process.argv);
 
+// === Events ===
+
+const ArenaCreated = `${pkg}::arena_pvp::ArenaCreated`;
+const PlayerJoined = `${pkg}::arena_pvp::PlayerJoined`;
+const PlayerCommit = `${pkg}::arena_pvp::PlayerCommit`;
+const PlayerReveal = `${pkg}::arena_pvp::PlayerReveal`;
+const RoundResult = `${pkg}::arena_pvp::RoundResult`;
+
+// === Moves ===
+
+const Moves = ["Rock", "Paper", "Scissors"];
+
 // === Commands / Actions ===
 
 async function joinArena(arenaId) {
@@ -66,26 +81,31 @@ async function joinArena(arenaId) {
     options: { showOwner: true, showContent: true },
   });
 
+  // In case fetching went wrong, error out.
   if ("error" in arenaFetch) {
     throw new Error(`Could not fetch arena: ${arenaFetch.error}`);
   }
 
+  // Although Arena is always shared, let's do a check anyway.
   if (!"Shared" in arenaFetch.data.owner) {
     throw new Error(`Arena is not shared`);
   }
 
-  let fields = arenaFetch.data.content.fields;
   let rejoin = false;
+  let fields = arenaFetch.data.content.fields;
+  let player_one = fields.player_one.fields.account;
 
+  // Check if the arena is full; if not - join; if it's the current account
+  // that is the player_two - rejoin.
   if (fields.player_two !== null) {
     if (fields.player_two.fields.account !== address) {
-      // Also handle a scenario where I rejoin the arena (quite important!)
       throw new Error(`Arena is full, second player is there...`);
     }
 
     rejoin = true;
   }
 
+  // Use the fetched data to not fetch Arena object ever again.
   let initialSharedVersion =
     arenaFetch.data.owner.Shared.initial_shared_version;
 
@@ -96,41 +116,30 @@ async function joinArena(arenaId) {
     initialSharedVersion,
   };
 
+  let gasObj = null;
+
   // Currently we only expect 1 scenario - join and compete to the end. So no
   // way to leave the arena and then rejoin. And the game order is fixed.
   if (!rejoin) {
-    let joinResult = await (function join() {
-      let tx = new TransactionBlock();
-      tx.moveCall({
-        target: `${pkg}::arena_pvp::join`,
-        arguments: [tx.sharedObjectRef(arena)],
-      });
+    let { result, gas } = await join(arena);
+    gasObj = gas;
 
-      return signAndExecute(tx);
-    })();
-
-    if ("errors" in joinResult) {
-      throw new Error(`Could not join arena: ${joinResult.errors}`);
+    if ("errors" in result) {
+      throw new Error(`Could not join arena: ${result.errors}`);
     }
+
+    console.log("Joined!");
+  } else {
+    console.log("Rejoined!");
   }
 
-  console.log(rejoin ? "Rejoined!" : "Joined!");
+  let { p1, p2 } = await getStats(arena.objectId);
+  console.table([p1, p2]);
 
   while (true) {
-    let { p1, p2 } = await getStats(arenaId);
-    console.table([p1, p2]);
-    
-    let move = await chooseMove();
-    let attackResult = await (function attack() {
-      let tx = new TransactionBlock();
-      tx.moveCall({
-        target: `${pkg}::arena_pvp::attack`,
-        arguments: [tx.sharedObjectRef(arena), tx.pure(move, "u8")],
-      });
-      return signAndExecute(tx);
-    })();
-
-    console.log(attackResult.events);
+    console.log("[NEXT ROUND]");
+    let { gas } = await fullRound(arena, address, player_one, gasObj);
+    gasObj = gas;
   }
 }
 
@@ -142,12 +151,10 @@ async function createArena() {
 
   let tx = new TransactionBlock();
   tx.moveCall({ target: `${pkg}::arena_pvp::new` });
-  let result = await signAndExecute(tx);
+  let { result, gas } = await signAndExecute(tx);
+  let gasObj = gas;
 
   let event = result.events[0].parsedJson;
-  let gasData = result.objectChanges.find((o) =>
-    o.objectType.includes("sui::SUI")
-  );
   let arenaData = result.objectChanges.find((o) =>
     o.objectType.includes("arena_pvp::Arena")
   );
@@ -161,20 +168,12 @@ async function createArena() {
     initialSharedVersion: arenaData.version,
   };
 
-  /* The gas object that we used for this transaction */
-  let gasObj = {
-    digest: gasData.digest,
-    objectId: gasData.objectId,
-    version: gasData.version,
-  };
-
   // Now wait until another player joins. This is a blocking call.
   console.log("Waiting for another player to join...");
 
   let player_two = null;
   let joinUnsub = await listenToArenaEvents(arena.objectId, (event) => {
-    console.log(event);
-    player_two = event.sender;
+    event.type === PlayerJoined && (player_two = event.sender);
   });
 
   await waitUntil(() => player_two !== null);
@@ -183,88 +182,178 @@ async function createArena() {
   console.log("Player 2 joined! %s", player_two);
   console.log("Starting the battle!");
 
+  let { p1, p2 } = await getStats(arena.objectId);
+  console.table([p1, p2]);
+
   while (true) {
-    console.log('[NEXT ROUND]');
-    let { p1, p2 } = await getStats(arena.objectId);
-    console.table([ p1, p2 ]);
+    console.log("[NEXT ROUND]");
+    let { gas } = await fullRound(arena, address, player_two, gasObj);
+    gasObj = gas;
+  }
+}
 
-    let p2_moved = false;
-    let moveUnsub = await listenToArenaEvents(arena.objectId, (event) => {
-      if (event.sender === player_two) { p2_moved = true; }
-      console.log(event.type.split('::').slice(1).join('::'));
-    });
+/** Perform a single round of actions: commit, wait, reveal, repeat */
+async function fullRound(arena, player_one, player_two, gasObj = null) {
+  let p2_moved = false;
+  let moveUnsub = await listenToArenaEvents(arena.objectId, (event) => {
+    if (event.sender === player_two && event.type === PlayerCommit) {
+      p2_moved = true;
+    }
+  });
 
-    let p1_move = await chooseMove();
-    let moveResult = await (function attack() {
-      let tx = new TransactionBlock();
-      tx.moveCall({
-        target: `${pkg}::arena_pvp::attack`,
-        arguments: [ tx.sharedObjectRef(arena), tx.pure(p1_move, 'u8') ]
-      });
-      return signAndExecute(tx);
-    })();
+  let p1_move = await chooseMove();
+  let { gas: cmtGas } = await commit(arena, p1_move, gasObj);
+  gasObj = cmtGas;
+  console.log("Commitment submitted!");
 
-    console.log(moveResult.events, moveResult.objectChanges);
+  await waitUntil(() => p2_moved);
+  await moveUnsub();
 
-    await waitUntil(() => p2_moved);
-    await moveUnsub();
+  console.log("Both players have chosen a move. Revealing...");
 
-    console.log('Both players have chosen a move, calculating...');
+  let round_res = null;
+  let p2_move = null;
+  let roundUnsub = await listenToArenaEvents(arena.objectId, (event) => {
+    if (event.type === PlayerReveal && event.sender === player_two) {
+      p2_move = event.parsedJson._move;
+    }
 
-    let roundResult = await (function round() {
-      let tx = new TransactionBlock();
-      tx.moveCall({
-        target: `${pkg}::arena_pvp::round`,
-        arguments: [ tx.sharedObjectRef(arena) ]
-      });
-      return signAndExecute(tx);
-    })();
+    if (event.type === RoundResult) {
+      round_res = {
+        attacker: event.sender,
+        attacker_hp: event.parsedJson.attacker_hp,
+        defender_hp: event.parsedJson.defender_hp,
+      };
+    }
+  });
 
+  let { gas: rvlGas } = await reveal(arena, p1_move, gasObj);
+  gasObj = rvlGas;
+  console.log("Revealed!");
 
+  await waitUntil(() => !!round_res);
+  await roundUnsub();
 
-    console.log(roundResult.events, roundResult.objectChanges);
+  if (round_res.attacker === player_one) {
+    console.table([
+      {
+        name: "You",
+        hp: formatHP(round_res.attacker_hp),
+        move: Moves[p1_move],
+      },
+      {
+        name: "Opponent",
+        hp: formatHP(round_res.defender_hp),
+        move: (p2_move && Moves[p2_move]) || "Network Failure",
+      },
+    ]);
+  } else {
+    console.table([
+      {
+        name: "You",
+        hp: formatHP(round_res.defender_hp),
+        move: Moves[p1_move],
+      },
+      {
+        name: "Opponent",
+        hp: formatHP(round_res.attacker_hp),
+        move: (p2_move && Moves[p2_move]) || "Network Failure",
+      },
+    ]);
   }
 
-  return;
+  if (round_res.attacker_hp == 0 || round_res.defender_hp == 0) {
+    if (address == round_res.attacker) {
+      if (round_res.attacker_hp == 0) {
+        console.log("Game over! You lost!");
+      } else {
+        console.log("Congratulations! You won!");
+      }
+    } else {
+      if (round_res.attacker_hp == 0) {
+        console.log("Congratulations! You won!");
+      } else {
+        console.log("Game over! You lost!");
+      }
+    }
 
-  // while (true) {
+    process.exit(0);
+  }
 
-  //     let tx = new TransactionBlock();
-  //     tx.setGasPayment([ gasObj ]);
-  //     tx.setGasBudget('1000000000');
-  //     tx.moveCall({
-  //         target: `${pkg}::arena::attack`,
-  //         arguments: [
-  //             tx.sharedObjectRef(arena),
-  //             tx.pure(move, 'u8')
-  //         ]
-  //     });
-
-  //     let result = await signAndExecute(tx);
-  //     let gasData = result.objectChanges.find((o) => o.objectType.includes('sui::SUI'));
-  //     let event = result.events.map((e) => e.parsedJson)[0];
-
-  //     // update gas to not fetch it again
-  //     gasObj = { digest: gasData.digest, objectId: gasData.objectId, version: gasData.version };
-
-  //     console.table([
-  //         { name: 'Player', HP: +event.player_hp / (100000000) },
-  //         { name: 'Bot', HP: +event.bot_hp / (100000000) }
-  //     ]);
-  // }
-
-  // console.log(result);
+  return { gas: gasObj };
 }
+
+// === Transactions ===
+
+/** Submit a commitment with an attack */
+function commit(arena, move, gas = null) {
+  let data = new Uint8Array([move, 1, 2, 3, 4]);
+  let hash = Array.from(blake2b(32).update(data).digest());
+
+  let tx = new TransactionBlock();
+  tx.moveCall({
+    target: `${pkg}::arena_pvp::commit`,
+    arguments: [tx.sharedObjectRef(arena), tx.pure(hash, "vector<u8>")],
+  });
+  return signAndExecute(tx, gas);
+}
+
+/** Reveal the commitment by providing the Move and Salt */
+function reveal(arena, move, gas = null) {
+  let tx = new TransactionBlock();
+  tx.moveCall({
+    target: `${pkg}::arena_pvp::reveal`,
+    arguments: [
+      tx.sharedObjectRef(arena),
+      tx.pure(move, "u8"),
+      tx.pure([1, 2, 3, 4], "vector<u8>"),
+    ],
+  });
+  return signAndExecute(tx, gas);
+}
+
+/** Join the arena if not yet */
+function join(arena, gas = null) {
+  let tx = new TransactionBlock();
+  tx.moveCall({
+    target: `${pkg}::arena_pvp::join`,
+    arguments: [tx.sharedObjectRef(arena)],
+  });
+
+  return signAndExecute(tx, gas);
+}
+
+// === Fetching and Listening ===
 
 /** Fetch current stats of both players */
 async function getStats(arenaId) {
-  let object = await client.getObject({ id: arenaId, options: { showContent: true }});
+  let object = await client.getObject({
+    id: arenaId,
+    options: { showContent: true },
+  });
   let fields = object.data.content.fields;
 
-  return {
-    p1: fields.player_one.fields.stats.fields,
-    p2: fields.player_two.fields.stats.fields
-  };
+  let p1 =
+    fields.player_one.fields.account == address
+      ? fields.player_one.fields.stats.fields
+      : fields.player_two.fields.stats.fields;
+
+  let p2 =
+    fields.player_one.fields.account == address
+      ? fields.player_two.fields.stats.fields
+      : fields.player_one.fields.stats.fields;
+
+  p1 = { name: "You", HP: formatHP(p1.hp), ...p1 };
+  p2 = { name: "Opponent", HP: formatHP(p2.hp), ...p2 };
+
+  p1.types = p1.types.map((type) => Moves[type]);
+  p2.types = p2.types.map((type) => Moves[type]);
+
+  return { p1, p2 };
+}
+
+function formatHP(hp) {
+  return +(hp / 100000000).toFixed(2);
 }
 
 /** Subscribe to all emitted events for a specified arena */
@@ -286,15 +375,21 @@ function listenToArenaEvents(arenaId, cb) {
       if (cond) {
         cb(event);
       } else {
-        console.log(event);
+        console.log("Not tracked: %o", event);
       }
     },
   });
 }
 
 /** Sign the TransactionBlock and send the tx to the network */
-function signAndExecute(tx) {
-  return client.signAndExecuteTransactionBlock({
+async function signAndExecute(tx, gasObj = null) {
+  if (gasObj) {
+    tx.setGasPayment([gasObj]);
+    tx.setGasBudget("100000000");
+    tx.setGasPrice(1000);
+  }
+
+  const result = await client.signAndExecuteTransactionBlock({
     signer: keypair,
     transactionBlock: tx,
     options: {
@@ -303,6 +398,11 @@ function signAndExecute(tx) {
       showEvents: true,
     },
   });
+
+  return {
+    result,
+    gas: result.effects.gasObject.reference,
+  };
 }
 
 /** Prompt a list to the user */
