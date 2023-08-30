@@ -15,7 +15,7 @@ import blake2b from "blake2b";
 // === Sui Devnet Environment ===
 
 const pkg =
-  "0x50ba26c7949d7b2cadd88b17dbe37997bb92a0bebdc495c2bbf120fe147857cd"; // config.packageId;
+  "0x7b011c4edf9ed0a659b74a4632a0bdf736a068cfb9645de9ea01f6102110d52b"; // config.packageId;
 
 /** The built-in client for the application */
 const client = new SuiClient({ url: getFullnodeUrl("devnet") });
@@ -35,6 +35,7 @@ const keys = [
 const myKey = keys[process.env.KEY || 0];
 const keypair = Ed25519Keypair.fromSecretKey(fromB64(myKey.privateKey));
 const address = keypair.toSuiAddress();
+
 
 // === CLI Bits ===
 
