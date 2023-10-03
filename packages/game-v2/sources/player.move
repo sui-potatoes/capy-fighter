@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /// The Player module; defines the Player generation + Stats accessors.
+///
+/// - All players start with Level = 1.
+/// - Players can be created by anyone (for now).
 module game::player {
     use std::vector;
     use sui::tx_context::TxContext;
@@ -35,23 +38,20 @@ module game::player {
     // === Reads ===
 
     /// Get the stats of the player.
-    public fun stats(self: &Player): &Stats {
-        &self.stats
-    }
+    public fun stats(self: &Player): &Stats { &self.stats }
 
     /// Get the kiosk of the player.
-    public fun kiosk(self: &Player): ID {
-        self.kiosk
-    }
+    public fun kiosk(self: &Player): ID { self.kiosk }
 
     // === Internal ===
 
     /// Generate stats based on a seed; currently just a dummy-something to
     /// make sure we can assemble the game.
+    ///
+    /// Add Level Calculation here!
     fun generate_stats(seed: vector<u8>): Stats {
-        // let level = *vector::borrow(&seed, 8) % 10;
-        // let level = if (level == 0) { 1 } else { level };
-        let level = 10;
+        let level = 1;
+
         stats::new(
             10 + smooth(*vector::borrow(&seed, 0)),
             smooth(*vector::borrow(&seed, 1)),
