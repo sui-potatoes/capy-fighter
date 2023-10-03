@@ -41,7 +41,7 @@ module game::the_game {
     /// The Dynamic Field Key for the Player.
     struct PlayerKey has store, copy, drop {}
 
-    /// The Dynamic Field Key for the Match.
+    /// The Dynamic Field Key for an active Match in the Arena.
     struct MatchKey has store, copy, drop {}
 
     // === Extension ===

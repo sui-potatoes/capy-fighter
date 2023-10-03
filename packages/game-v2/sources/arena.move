@@ -60,13 +60,22 @@ module game::arena {
         /// The current round of the game.
         round: u8,
         /// Unique identifier for the game, passed by the matchmaker.
+        /// TODO: consider removing completely.
         game_id: ID,
         /// Player 1 stats and the current game state.
         p1: Option<ActivePlayer>,
         /// Player 2 stats and the current game state.
         p2: Option<ActivePlayer>,
-        /// Whether Arena has reached the final state.
-        is_over: bool
+
+        // === Conditions for the end of the game ===
+
+        /// The timestamp of the last action performed.
+        last_action_timestamp_ms: u64,
+        /// The ID of the last player to perform an action.
+        last_action_user: ID,
+        /// The game is over if one of the players has 0 HP; the other player
+        /// is the winner.
+        winner: Option<ID>
     }
 
     /// Currently active player (wraps the Player struct).
@@ -102,6 +111,8 @@ module game::arena {
             is_over: false,
             p1: add_player(p1),
             p2: add_player(p2),
+            last_action_timestamp_ms: 0,
+            last_action_user: arena_id,
         });
 
         arena_id
@@ -112,10 +123,11 @@ module game::arena {
         self: &mut Arena,
         cap: &KioskOwnerCap,
         commitment: vector<u8>,
-        _clock: &Clock,
+        clock: &Clock,
         _ctx: &mut TxContext
     ) {
         assert!(!is_over(self), EArenaOver);
+        assert!(still_time(self, clock), EArenaOver);
         assert!(!is_any_player_down(self), EArenaOver);
 
         let kiosk_id = kiosk::kiosk_owner_cap_for(cap);
@@ -133,6 +145,9 @@ module game::arena {
         assert!(option::is_none(&player.next_attack), EMoveAlreadySubmitted);
         option::fill(&mut player.next_attack, commitment);
 
+        self.last_action_timestamp_ms = clock::timestamp_ms(clock);
+        self.last_action_user = kiosk_id;
+
         sui::event::emit(PlayerCommit {
             arena: object::uid_to_address(&self.id)
         });
@@ -149,6 +164,7 @@ module game::arena {
         _ctx: &mut TxContext
     ) {
         assert!(!is_over(self), EArenaOver);
+        assert!(still_time(self, clock), EArenaOver);
         assert!(!is_any_player_down(self), EArenaOver);
 
         // The player that is revealing.
@@ -188,7 +204,6 @@ module game::arena {
         );
 
         attacker.next_round = self.round + 1;
-
         let next_round_cond = option::is_none(&defender.next_attack)
             && (defender.next_round == (self.round + 1));
 
@@ -196,6 +211,9 @@ module game::arena {
             arena: object::uid_to_address(&self.id),
             _move: player_move
         });
+
+        self.last_action_timestamp_ms = clock::timestamp_ms(clock);
+        self.last_action_user = kiosk_id;
 
         // If both players have revealed, then the round is over; the last one
         // to reveal bumps the round.
@@ -212,6 +230,10 @@ module game::arena {
 
     // === Protected ===
 
+    /// Returns the `Player` and the bool value marking whether the player has
+    /// won (true) or not (false).
+    ///
+    /// Can only be called by `the_game` for the time being.
     public(friend) fun wrap_up(self: &mut Arena, kiosk: &Kiosk): (Player, bool) {
         let ActivePlayer {
             player,
@@ -237,6 +259,14 @@ module game::arena {
     /// has concluded for one of the possible reasons.
     public fun is_over(self: &Arena): bool {
         option::is_none(&self.p1) || option::is_none(&self.p2)
+    }
+
+    /// Returns true if the player is still in the game.
+    public fun still_time(self: &Arena, clock: &Clock): bool {
+        let now = clock::timestamp_ms(clock);
+        let last_ms = self.last_action_timestamp_ms;
+
+        self.last_action_timestamp_ms == 0 || now > (last_ms + TIMEOUT)
     }
 
     /// Returns the game ID.
