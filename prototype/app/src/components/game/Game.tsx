@@ -55,6 +55,7 @@ export function Game() {
       setGameType(GameTypes.PVP);
       setArena(res.arena);
       setGameStarted(true);
+      setJoinGame(false);
   }
 
   const startPvB = async () => {
@@ -64,6 +65,7 @@ export function Game() {
     setGameType(GameTypes.PVB);
     setArena(res.arena);
     setGameStarted(true);
+    setJoinGame(false);
   }
 
   const end = () => {
