@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GameTypes, createArena, joinAsSecondPlayer, parseGameStatsFromArena } from "../../helpers/game";
 import { Arena } from "./Arena";
 import { SharedObjectRef } from "@mysten/sui.js/bcs";
-import { isValidSuiObjectId } from "@mysten/sui.js/utils";
+import { isValidSuiObjectId, normalizeSuiObjectId } from "@mysten/sui.js/utils";
 import { unsafe_getConnectedAddress } from "../../helpers/account";
+import { useSearchParams } from "react-router-dom";
 
 export type GameProps = {
   email: string;
@@ -11,6 +12,17 @@ export type GameProps = {
 
 // The game options.
 export function Game() {
+
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Handle URL navigation here.
+  useEffect(() => {
+    if(searchParams.get('join')){
+      setJoinGameId(normalizeSuiObjectId(searchParams.get('join') || ''));
+      setJoinGame(true);
+    }
+  }, []);
 
   const [gameStarted, setGameStarted] = useState<boolean>(false);
 
@@ -21,9 +33,9 @@ export function Game() {
 
   const [arena, setArena] = useState<SharedObjectRef | null>(null);
 
-  const searchGameAndJoin = async () => {
+  const searchGameAndJoin = async (gameId?: string) => {
 
-    const game = await parseGameStatsFromArena(joinGameId, true);
+    const game = await parseGameStatsFromArena(gameId || joinGameId, true);
   
     if(game.playerOne && game.playerTwo
           && game.playerOne.account !== unsafe_getConnectedAddress()
@@ -112,7 +124,7 @@ export function Game() {
                       <div className='pt-12'>
                 <button className="disabled:opacity-30"
                     disabled={!joinGameId || !isValidSuiObjectId(joinGameId)}
-                    onClick={searchGameAndJoin}
+                    onClick={() => searchGameAndJoin()}
                 >Join Game</button>
             </div>
             </div>

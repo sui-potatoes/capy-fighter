@@ -4,10 +4,6 @@ import { SuiEvent, SuiObjectData } from "@mysten/sui.js/client";
 import { SharedObjectRef } from "@mysten/sui.js/bcs";
 import { getSuiClient } from "./account";
 import blake2b from 'blake2b';
-// import fire from "assets/fire.png";
-// import air from "@/assets/air.png";
-// import water from "@/assets/water.png";
-
 
 export const GAME_PACKAGE_ADDRESS = '0xe9143d117939e95c9fc623760c23799420ce2173199f2668d891a87430beff48';
 

@@ -137,6 +137,8 @@ export function Arena({
 
                     {isExpectingMove && <Moves makeMove={
                         gameType === GameTypes.PVB ? makePvBMove : commitMove} />}
+
+                    {!isExpectingMove && <div className="text-center py-12">Waiting for the other player's move</div>}
                 </>
             }
 
