@@ -8,10 +8,13 @@ import { fromB64 } from "@mysten/sui.js/utils";
 import { program } from "commander";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import inquirer from "inquirer";
+// import { config } from "./config";
 
 // === Sui Devnet Environment ===
 
-const pkg = config.packageId;
+const pkg =
+  "0x5ae3e0d8fe32a8282059c4ca0511a66724e590b888465ed5eb77e826d2a7d63c"; // config.packageId;
+
 
 /** The built-in client for the application */
 const client = new SuiClient({ url: getFullnodeUrl("devnet") });
@@ -43,6 +46,7 @@ program.parse(process.argv);
 
 /** Create an arena and wait for another player */
 async function createArena() {
+    await checkOrRequestGas();
 
     // Run the create arena transaction
 
@@ -128,10 +132,17 @@ function signAndExecute(tx) {
   });
 }
 
-// (async () => {
-//     // check that the address has some Coins on it;
-//     await client.getCoins({ owner: address }).then(console.log);
-// })();
+/** Check that the account has at least 1 coin, if not - request from faucet */
+async function checkOrRequestGas() {
+  console.log("Checking for gas...");
+  let coins = await client.getCoins({ owner: address });
+  if (coins.data.length == 0) {
+    console.log("No gas found; requesting from faucet...");
+    await requestFromFaucet();
+    return new Promise((resolve) => setTimeout(resolve, 10000));
+  }
+  console.log("All good!");
+}
 
 /** Request some SUI to the main address */
 function requestFromFaucet() {
