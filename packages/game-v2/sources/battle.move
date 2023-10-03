@@ -3,6 +3,10 @@
 
 /// The battle engine for the game.
 /// Contains Moves, their power, makes sure that the HP is decreased correctly.
+///
+/// Types (indexed): Water (0), Fire (1), Earth (2), Air (3);
+/// Moves (indexed): Hydro Pump (0), Aqua Tail (1), Inferno (2), Flamethrower (3),
+///                  Quake Strike (4), Earthquake (5), Gust (6), Air Slash (7).
 module game::battle {
     use std::vector;
 
@@ -13,15 +17,33 @@ module game::battle {
     const EWrongMove: u64 = 0;
 
     /// Total number of Moves.
-    const TOTAL_MOVES: u64 = 4;
+    const TOTAL_MOVES: u64 = 8;
+
+    const MOVES_SPECIAL: vector<bool> = vector[
+        false, true, // Hydro Pump // Aqua Tail
+        false, true, // Inferno // Flamethrower
+        false, true, // Quake Strike // Earthquake
+        false, true, // Gust // Air Slash
+    ];
+
+    const MOVES_TYPES: vector<u8> = vector[
+        0, 0, // Water
+        1, 1, // Fire
+        2, 2, // Earth
+        3, 3, // Air
+    ];
 
     /// Starting with 3 Moves (and corresponding types). Each Capy can choose
     /// to attack with one of these Moves.
     const MOVES_POWER: vector<u8> = vector[
         90, // Hydro Pump (Water)
+        85, // Aqua Tail (Water)
         85, // Inferno (Fire)
+        90, // Flamethrower (Fire)
         80, // Quake Strike (Earth)
-        75, // Gust (Air)
+        85, // Earthquake (Earth)
+        75, // Gust (Air),
+        80, // Air Slash (Air)
     ];
 
     /// The map of effectiveness of Moves against types. The first index is the
@@ -49,58 +71,45 @@ module game::battle {
     /// 0-2, so we need to scale them to 0-20 to apply in the uint calculations.
     const EFF_SCALING: u64 = 10;
 
-    // TODO: remove once debug is over
-    use std::string::utf8;
-
     /// It magically wraps the HP decreasing.
+    ///
+    /// Returns: (damage, effectiveness, is_stab)
     public fun attack(
-        attacker: &Stats, defender: &mut Stats, _move: u64, rng: u8, debug: bool
-    ) {
-        assert!(_move < 3, EWrongMove);
+        attacker: &Stats, defender: &mut Stats, move_: u64, rng: u8
+    ): (u64, u64, bool) {
+        assert!(move_ < TOTAL_MOVES, EWrongMove);
+
+        let move_power = *vector::borrow(&MOVES_POWER, move_);
+        let is_special = *vector::borrow(&MOVES_SPECIAL, move_);
 
         // Currently Capys only have 1 type. Pokemons can have up to 2 types.
         let attacker_type = (*vector::borrow(&stats::types(attacker), 0) as u64);
         let defender_type = (*vector::borrow(&stats::types(defender), 0) as u64);
 
-        let move_power = *vector::borrow(&MOVES_POWER, _move);
-        let raw_damage = pokemon::physical_damage(
-            attacker,
-            defender,
-            move_power,
-            rng
-        );
-
-        // Get the effectiveness table for this specifc Move, then look up defender's
-        // type in the table by index. That would be the TYPE1 modifier.
-        let move_effectiveness = *vector::borrow(&MOVES_EFFECTIVENESS, _move);
-        let effectiveness = *vector::borrow(&move_effectiveness, defender_type);
-
-        // TODO: remove in the future.
-        if (debug) {
-            std::debug::print(&utf8(b"Defender type, effectiveness, original damage, new damage"));
-            std::debug::print(&vector[
-                defender_type,
-                effectiveness,
-                raw_damage / 1_000_000_000,
-                (raw_damage * effectiveness / EFF_SCALING / 1_000_000_000)
-            ]);
+        // Calculate the raw damage.
+        let raw_damage = if (is_special) {
+            pokemon::special_damage(attacker, defender, move_power, rng)
+        } else {
+            pokemon::physical_damage(attacker, defender, move_power, rng)
         };
+
+        // Get the effectiveness table for this specifc Move, then look up
+        // defender's type in the table by index. That would be the TYPE1
+        // modifier.
+        let move_effectiveness = *vector::borrow(&MOVES_EFFECTIVENESS, move_);
+        let effectiveness = *vector::borrow(&move_effectiveness, defender_type);
 
         // Effectiveness of a move against the type is calculated as:
         raw_damage = raw_damage * effectiveness / EFF_SCALING;
 
-        if (debug) {
-            std::debug::print(&utf8(b"Attacker type and move"));
-            std::debug::print(&vector[attacker_type, _move]);
-        };
-
         // Same type attack bonus = STAB - adds 50% to the damage.
-        if (_move == attacker_type) {
-            if (debug) std::debug::print(&utf8(b"Same type attack bonus!"));
+        if (move_ == attacker_type) {
             raw_damage = raw_damage * STAB_BONUS / EFF_SCALING;
         };
 
-        // Now apply the damage to the defender (can get to 0, safe operation)
+        // now apply the damage to the defender (can get to 0, safe operation)
         stats::decrease_hp(defender, raw_damage);
+
+        (raw_damage, effectiveness, move_ == attacker_type)
     }
 }

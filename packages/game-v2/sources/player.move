@@ -11,7 +11,7 @@ module game::player {
 
     use sui::clock::{Self, Clock};
     use sui::tx_context::TxContext;
-    use sui::object::{Self, UID, ID};
+    use sui::object::ID;
 
     use pokemon::stats::{Self, Stats};
 
@@ -37,21 +37,39 @@ module game::player {
 
     /// Create a new Player.
     public(friend) fun new(
-        kiosk: &UID, // TODO: fixme
+        kiosk: ID,
+        type: u8,
         seed: vector<u8>,
         _ctx: &mut TxContext
     ): Player {
         Player {
-            stats: generate_stats(seed),
-            kiosk: object::uid_to_inner(kiosk),
+            kiosk,
+            stats: generate_stats(type, seed),
             banned_until: option::none(),
-            // ...
         }
+    }
+
+    /// Ban the player for a certain amount of time;
+    /// Is public and it's up to the game to decide when to ban a player.
+    public fun ban_player(
+        self: &mut Player,
+        clock: &Clock,
+        duration_minutes: u64,
+        _ctx: &mut TxContext
+    ) {
+        assert!(option::is_none(&self.banned_until), EStillBanned);
+
+        let banned_until = clock::timestamp_ms(clock) + duration_minutes * 60 * 1000;
+        self.banned_until = option::some(banned_until);
     }
 
     /// Remove the ban once the time has passed; requires a manual action from
     /// the player to make it more explicit.
-    public fun remove_ban(self: &mut Player, clock: &Clock, _ctx: &mut TxContext) {
+    public fun remove_ban(
+        self: &mut Player,
+        clock: &Clock,
+        _ctx: &mut TxContext
+    ) {
         assert!(option::is_some(&self.banned_until), ENotBanned);
 
         let banned_until = option::extract(&mut self.banned_until);
@@ -80,7 +98,7 @@ module game::player {
     /// make sure we can assemble the game.
     ///
     /// Add Level Calculation here!
-    fun generate_stats(seed: vector<u8>): Stats {
+    fun generate_stats(type: u8, seed: vector<u8>): Stats {
         let level = 1;
 
         stats::new(
@@ -91,7 +109,7 @@ module game::player {
             smooth(*vector::borrow(&seed, 4)),
             smooth(*vector::borrow(&seed, 5)),
             level,
-            vector[ *vector::borrow(&seed, 6) % 3 ]
+            vector[ type ]
         )
     }
 

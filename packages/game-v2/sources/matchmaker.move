@@ -3,9 +3,11 @@
 
 module game::matchmaker {
     use std::option::{Self, Option};
+
     use sui::tx_context::{fresh_object_address, TxContext};
     use sui::object::{Self, ID, UID};
     use sui::dynamic_field as df;
+    use sui::transfer;
 
     use game::player::{Self, Player};
     use game::arena::create_arena;
@@ -19,7 +21,7 @@ module game::matchmaker {
     // to track the matchpool we can use effects from the publishing tx, then we
     // set the value once and for good.
     fun init(ctx: &mut TxContext) {
-        sui::transfer::share_object(MatchPool {
+        transfer::share_object(MatchPool {
             id: object::new(ctx),
             request: option::none(),
         });

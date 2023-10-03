@@ -21,7 +21,8 @@ module game::arena {
     use sui::tx_context::TxContext;
     use sui::kiosk::{Self, KioskOwnerCap};
     use sui::object::{Self, ID, UID};
-    use sui::clock::Clock;
+    use sui::clock::{Self, Clock};
+    use sui::hash::blake2b256;
     use sui::transfer;
     use sui::bcs;
 
@@ -82,7 +83,7 @@ module game::arena {
         let arena_id = object::uid_to_inner(&id);
 
         // TODO: better rand stuff
-        let seed = sui::hash::blake2b256(&bcs::to_bytes(&arena_id));
+        let seed = blake2b256(&bcs::to_bytes(&arena_id));
 
         transfer::share_object(Arena {
             id,
@@ -134,7 +135,7 @@ module game::arena {
         cap: &KioskOwnerCap,
         player_move: u8,
         salt: vector<u8>,
-        _clock: &Clock,
+        clock: &Clock,
         _ctx: &mut TxContext
     ) {
         assert!(!is_over(self), EArenaOver);
@@ -165,7 +166,7 @@ module game::arena {
         let commitment = vector[ player_move ];
         vector::append(&mut commitment, salt);
 
-        let commitment = sui::hash::blake2b256(&commitment);
+        let commitment = blake2b256(&commitment);
         let next_attack = option::extract(&mut attacker.next_attack);
         assert!(&commitment == &next_attack, EInvalidCommitment);
 
@@ -173,8 +174,7 @@ module game::arena {
             &attacker.stats,
             &mut defender.stats,
             (player_move as u64),
-            hit_rng(commitment, 2, self.round),
-            false
+            hit_rng(commitment, clock::timestamp_ms(clock), self.round),
         );
 
         attacker.next_round = self.round + 1;
@@ -191,8 +191,6 @@ module game::arena {
         // to reveal bumps the round.
         if (next_round_cond) {
             self.round = self.round + 1;
-
-
 
             sui::event::emit(RoundResult {
                 arena: object::uid_to_address(&self.id),
@@ -212,9 +210,7 @@ module game::arena {
     }
 
     /// Returns the current round of the game.
-    public fun round(self: &Arena): u8 {
-        self.round
-    }
+    public fun round(self: &Arena): u8 { self.round }
 
     // === Internal ===
 
@@ -249,21 +245,19 @@ module game::arena {
     }
 
     /// Generate a random number for a hit in the range [217; 255]
-    fun hit_rng(seed: vector<u8>, path: u8, round: u8): u8 {
-        let value = *vector::borrow(&derive(seed, path), (round as u64));
+    fun hit_rng(seed: vector<u8>, timestamp_ms: u64, round: u8): u8 {
+        let seed = bcs::to_bytes(&vector[
+            bcs::to_bytes(&timestamp_ms),
+            bcs::to_bytes(&seed),
+        ]);
+
+        let seed = blake2b256(&seed);
+        let value = *vector::borrow(&seed, (round as u64));
+
         ((value % (255 - 217)) + 217)
     }
 
-    /// Derive a new seed from a previous seed and a path.
-    fun derive(seed: vector<u8>, path: u8): vector<u8> {
-        vector::push_back(&mut seed, path);
-        sui::hash::blake2b256(&seed)
-    }
-
     // === Events ===
-
-    /// Emitted when a new Arena is created and available for joining.
-    struct ArenaCreated has copy, drop { arena: address }
 
     /// Emitted when a player commits the hit move.
     struct PlayerCommit has copy, drop { arena: address }

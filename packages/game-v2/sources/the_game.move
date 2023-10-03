@@ -4,10 +4,12 @@
 module game::the_game {
     use std::option;
 
+    use sui::bcs;
     use sui::bag;
+    use sui::object;
+    use sui::kiosk_extension as ext;
     use sui::tx_context::{Self, TxContext};
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
-    use sui::kiosk_extension as ext;
 
     use game::player;
     use game::matchmaker::{Self, MatchPool};
@@ -51,23 +53,20 @@ module game::the_game {
     entry fun new_player(
         kiosk: &mut Kiosk,
         cap: &KioskOwnerCap,
+        type: u8,
         ctx: &mut TxContext
     ) {
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
 
         // very rough pseudo random seed generator
-        let rand_source = sui::bcs::to_bytes(&tx_context::fresh_object_address(ctx));
-        let player = player::new(kiosk::uid(kiosk), rand_source, ctx);
+        let rand_source = bcs::to_bytes(&tx_context::fresh_object_address(ctx));
+        let player = player::new(object::id(kiosk), type, rand_source, ctx);
         let storage = ext::storage_mut(Game {}, kiosk);
 
         assert!(!bag::contains(storage, PlayerKey {}), EPlayerAlreadyExists);
 
-        bag::add(
-            storage,
-            PlayerKey {},
-            option::some(player)
-        );
+        bag::add(storage, PlayerKey {}, option::some(player))
     }
 
     /// Play the game by finding or creating a match.
@@ -87,14 +86,8 @@ module game::the_game {
         let player = option::extract(bag::borrow_mut(storage, PlayerKey {}));
         let match_id = matchmaker::find_or_create_match(matches, player, ctx);
 
-        bag::add(storage, MatchKey {}, match_id);
+        bag::add(storage, MatchKey {}, match_id)
     }
-
-    // entry fun finish_match(
-    //     kiosk: &mut Kiosk,
-    //     cap: &KioskOwnerCap,
-
-    // )
 
     // === Reads ===
 
