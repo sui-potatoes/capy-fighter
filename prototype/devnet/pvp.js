@@ -15,7 +15,7 @@ import blake2b from "blake2b";
 // === Sui Devnet Environment ===
 
 const pkg =
-  "0x7b011c4edf9ed0a659b74a4632a0bdf736a068cfb9645de9ea01f6102110d52b"; // config.packageId;
+  "0x5ae3e0d8fe32a8282059c4ca0511a66724e590b888465ed5eb77e826d2a7d63c"; // config.packageId;
 
 /** The built-in client for the application */
 const client = new SuiClient({ url: getFullnodeUrl("devnet") });

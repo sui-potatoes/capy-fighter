@@ -1,60 +1,106 @@
 import { useEffect, useState } from "react";
-import { GameMove, GameTypes, MOVES, PlayerStats, createArena, makeArenaMove } from "../../helpers/game";
+import { GameMove, GameTypes, PlayerStats, commitPvPMove, makeArenaMove, parseGameStatsFromArena, revealPvPMove } from "../../helpers/game";
 import { SharedObjectRef } from "@mysten/sui.js/bcs";
 import { Moves } from "./parts/Moves";
-import HealthBar from "./parts/HealthBar";
+import { ArenaTitle } from "./parts/ArenaTitle";
+import { ArenaResult } from "./parts/ArenaResult";
+import { PlayerStatistics } from "./parts/PlayerStatistics";
+import { unsafe_getConnectedAddress } from "../../helpers/account";
 
 export type ArenaProps = {
-    shouldInitGame: boolean;
-    gameId?: string;
+    arena: SharedObjectRef;
     gameType: GameTypes;
     end: () => void;
 }
 
 
 export function Arena({
-    shouldInitGame,
-    gameId,
+    arena,
     gameType = GameTypes.PVB,
     end
 }: ArenaProps) {
 
-
     const [isExpectingMove, setIsExpectingMove] = useState<boolean>(false);
-    const [arena, setArena] = useState<SharedObjectRef | null>(null);
 
     const [result, setResult] = useState<string | null>(null);
 
-    const [playerOne, setPlayerOne] = useState<PlayerStats | null>(null);
-    const [playerTwo, setPlayerTwo] = useState<PlayerStats | null>(null);
+    const [currentPlayer, setCurrentPlayer] = useState<PlayerStats | null>(null);
+    const [otherPlayer, setOtherPlayer] = useState<PlayerStats | null>(null);
 
-    const initGame = async () => {
-        const res = await createArena();
-        setArena(res.arena);
-        setPlayerOne(res.stats.player);
-        setPlayerTwo(res.stats.bot);
-        setIsExpectingMove(true);
+    const getGameStatus = async (arenaId: string) => {
+
+        setIsExpectingMove(false);
+        const stats = await parseGameStatsFromArena(arenaId, gameType === GameTypes.PVP);
+
+        const currentPlayer = stats.playerOne?.account === unsafe_getConnectedAddress() ? stats.playerOne : stats.playerTwo;
+        const otherPlayer  = stats.playerOne?.account !== unsafe_getConnectedAddress() ? stats.playerOne : stats.playerTwo;
+
+        setCurrentPlayer(currentPlayer);
+        setOtherPlayer(otherPlayer);
+
+
+        if(currentPlayer?.hp.toString() === '0'){
+            setResult("You Lost!");
+            return;
+        }else if (otherPlayer?.hp.toString() === '0'){
+            setResult("You won!");
+            return;
+        }
+
+        if(!currentPlayer) throw new Error("Cant join a game where you are not taking part");
+
+        if(!otherPlayer){
+            // we poll to get the status of the game until another player joins.
+            setTimeout(() => { getGameStatus(arenaId) }, 2500); 
+            return;
+        }
+        // for Player vs Bot, we always expect a move.
+        if(gameType === GameTypes.PVB){
+            setIsExpectingMove(true);
+        }
+
+        // if we are waiting to reveal, and the other player attacked.
+        // It's time to reveal!
+        if((currentPlayer.next_attack && otherPlayer.next_attack) || 
+             (currentPlayer.next_attack && currentPlayer.next_round! < otherPlayer.next_round!)) {
+            console.log("Pending reveal is triggered!");
+            // now we reveal.
+            await revealPvPMove({ arena, move: JSON.parse(localStorage.getItem('lastMove')) });
+            // we refetch game state after revealing.
+            getGameStatus(arenaId);
+
+            return;
+        }
+
+        // if we are pending reveal & the other player hasn't attacked yet. We are polling until they attack.
+        if(currentPlayer.next_attack && !otherPlayer.next_attack){
+            console.log("Pending reveal but waiting for the other player to commit first")
+            setTimeout(() => { getGameStatus(arenaId) }, 1000);
+            return;
+        }
+        // If we don't have the next attack, we are expecting a move.
+        if(!currentPlayer.next_attack && currentPlayer.next_round! <= otherPlayer.next_round!) {
+            setIsExpectingMove(true);
+            return;
+        } 
+
+        // in any other case. poll! :D
+        setTimeout(()=>{
+            getGameStatus(arenaId)
+        }, 1000)
+
+        
     }
 
-    const makeMove = async (move: GameMove) => {
+    const makePvBMove = async (move: GameMove) => {
         setIsExpectingMove(false);
 
-        if (!arena || !playerOne || !playerTwo) throw new Error("Arena or players are not set.");
+        if (!arena || !currentPlayer || !otherPlayer) throw new Error("Arena or players are not set.");
 
-        const { bot_hp, player_hp } = await makeArenaMove({
-            arena,
-            move
-        });
+        const { bot_hp, player_hp } = await makeArenaMove({ arena, move });
 
-        setPlayerOne({
-            ...playerOne,
-            current_hp: player_hp
-        });
-
-        setPlayerTwo({
-            ...playerTwo,
-            current_hp: bot_hp
-        });
+        setCurrentPlayer({ ...currentPlayer, hp: player_hp });
+        setOtherPlayer({ ...otherPlayer, hp: bot_hp });
 
         if (bot_hp.toString() === '0') {
             setResult("You Won!")
@@ -63,57 +109,35 @@ export function Arena({
         } else {
             setIsExpectingMove(true);
         }
+    }
 
+    /// Commits the move.
+    const commitMove = async (move: GameMove) => {
+        localStorage.setItem('lastMove', JSON.stringify(move));
+        await commitPvPMove({ arena, move });
+        getGameStatus(arena.objectId);
+        setIsExpectingMove(false);
     }
 
     useEffect(() => {
-        if (shouldInitGame) initGame();
+        getGameStatus(arena.objectId);
     }, []);
 
 
     return (
 
         <div>
-            <div className="mb-6">
-                <h3 className="text-3xl">
-                    Arena Fight
-                </h3>
-                <a href={`https://www.suiexplorer.com/object/${arena?.objectId}?network=devnet`} className="text-blue-500"
-                    target="_blank">
-                    View on explorer
-                </a>
-            </div>
-
-
-            {result &&
-                <div>
-                    <h2 className="text-6xl mb-6">
-                        {result}
-                    </h2>
-                    <button onClick={end}>
-                        Play Again
-                    </button>
-                </div>
-            }
+            <ArenaTitle arena={arena} />
+            <ArenaResult result={result} end={end} />
 
             {!result &&
                 <>
-                    <div className="grid grid-cols-2 gap-10">
-                        <div className=" whitespace-wrap break-words">
-                            <h2 className="text-3xl text-left">YOU</h2>
-                            <HealthBar initialHp={playerOne?.hp ?? 0n} currentHp={playerOne?.current_hp ?? 0n} />
-                        </div>
-                        <div className="break-words">
-                            <h2 className="text-3xl text-right">Other Player</h2>
-                            <div className="flex justify-end">
-                                <HealthBar initialHp={playerTwo?.hp ?? 0n} currentHp={playerTwo?.current_hp ?? 0n} />
-                            </div>
+                    <PlayerStatistics
+                        currentPlayer={currentPlayer} 
+                        otherPlayer={otherPlayer} />
 
-                        </div>
-                    </div>
-                    {
-                        isExpectingMove && <Moves makeMove={makeMove} />
-                    }
+                    {isExpectingMove && <Moves makeMove={
+                        gameType === GameTypes.PVB ? makePvBMove : commitMove} />}
                 </>
             }
 

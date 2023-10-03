@@ -12,12 +12,10 @@ export function Moves({
 
     useEffect(() => {
         const keyDownHandler = (event: KeyboardEvent) => {
-            console.log('User pressed: ', event.key);
-
+            // console.log('User pressed: ', event.key);
             if(MOVES.find(move => move.keyStroke === event.code)) {
                 event.preventDefault();
                 const move = MOVES.find(move => move.keyStroke === event.code);
-                console
                 if(move) {
                     makeMove(move);
                 }
