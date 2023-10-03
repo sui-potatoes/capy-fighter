@@ -248,13 +248,16 @@ module game::arena {
 
     /// Emitted when a new Arena is created and available for joining.
     struct ArenaCreated has copy, drop { arena: address }
+
     /// Emitted when a player commits the hit move.
     struct PlayerCommit has copy, drop { arena: address }
+
     /// Emitted when a player reveals the result and hits the other player.
     struct PlayerReveal has copy, drop {
         arena: address,
         _move: u8
     }
+
     /// Emitted when both players have hit and the round is over.
     struct RoundResult  has copy, drop {
         arena: address,

@@ -35,14 +35,14 @@ module game::the_game {
     const PERMISSIONS: u128 = 2;
 
     /// Add an extension to the Kiosk.
-    public fun add(kiosk: &mut Kiosk, cap: &KioskOwnerCap, ctx: &mut TxContext) {
+    entry fun add(kiosk: &mut Kiosk, cap: &KioskOwnerCap, ctx: &mut TxContext) {
         ext::add(Game {}, kiosk, cap, PERMISSIONS, ctx)
     }
 
     // === The Game Itself ===
 
     /// Currently there can be only one player!
-    public fun new_player(kiosk: &mut Kiosk, cap: &KioskOwnerCap, ctx: &mut TxContext) {
+    entry fun new_player(kiosk: &mut Kiosk, cap: &KioskOwnerCap, ctx: &mut TxContext) {
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
 
@@ -95,7 +95,11 @@ module game::the_game {
     public fun is_playing(kiosk: &Kiosk): bool {
         assert!(has_player(kiosk), ENoPlayer);
 
-        let player = bag::borrow<PlayerKey, Option<Player>>(ext::storage(Game {}, kiosk), PlayerKey {});
+        let player = bag::borrow<PlayerKey, Option<Player>>(
+            ext::storage(Game {}, kiosk),
+            PlayerKey {}
+        );
+        
         option::is_some(player)
     }
 }
