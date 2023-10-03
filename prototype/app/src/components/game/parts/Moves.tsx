@@ -10,6 +10,14 @@ export function Moves({
     makeMove
 }: MoveProps) {
 
+
+    const makeMoveHandler = (move: GameMove) => {
+
+        const audio = new Audio(move.soundEffect);
+        audio.play();
+        makeMove(move);
+    }
+
     useEffect(() => {
         const keyDownHandler = (event: KeyboardEvent) => {
             // console.log('User pressed: ', event.key);
@@ -17,7 +25,7 @@ export function Moves({
                 event.preventDefault();
                 const move = MOVES.find(move => move.keyStroke === event.code);
                 if(move) {
-                    makeMove(move);
+                    makeMoveHandler(move);
                 }
             }
         };
@@ -40,7 +48,7 @@ export function Moves({
                         <button key={index} className="bg-transparent border-black py-6 rounded-lg"
                             onKeyUp={(e) => { console.log(e) }}
                             onClick={() => {
-                                makeMove(move);
+                                makeMoveHandler(move);
                             }
                             }>
                             <img src={move.icon} className="mx-auto w-16 mb-3" />

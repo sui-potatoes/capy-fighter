@@ -24,12 +24,13 @@ export type GameMove = {
     value: number;
     icon: string;
     keyStroke: string;
+    soundEffect: string;
 }
 
 export const MOVES: GameMove[] = [
-    { name: 'Fire', value: 0, icon: 'assets/fire.png', keyStroke: 'KeyQ' },
-    { name: 'Air', value: 1, icon: 'assets/air.png', keyStroke: 'KeyW' },
-    { name: 'Water', value: 2, icon: 'assets/water.png', keyStroke: 'KeyE' },
+    { name: 'Fire', value: 0, icon: 'assets/fire.png', keyStroke: 'KeyQ', soundEffect: 'assets/effect.wav' },
+    { name: 'Air', value: 1, icon: 'assets/air.png', keyStroke: 'KeyW', soundEffect: 'assets/effect.wav' },
+    { name: 'Water', value: 2, icon: 'assets/water.png', keyStroke: 'KeyE', soundEffect: 'assets/effect.wav' },
 ];
 
 export type GameStatus = {

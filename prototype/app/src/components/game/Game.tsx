@@ -28,9 +28,7 @@ export function Game() {
 
   const [joinGame, setJoinGame] = useState<boolean>(false);
   const [joinGameId, setJoinGameId] = useState<string>('');
-
   const [gameType, setGameType] = useState<GameTypes>(GameTypes.PVB);
-
   const [arena, setArena] = useState<SharedObjectRef | null>(null);
 
   const searchGameAndJoin = async (gameId?: string) => {
@@ -111,7 +109,7 @@ export function Game() {
 
         {/* Join game by ID. */}
         {
-          joinGame && <div>
+          !gameStarted && joinGame && <div>
             <p>Enter the arena ID</p>
             <input type="text"
                     value={joinGameId}

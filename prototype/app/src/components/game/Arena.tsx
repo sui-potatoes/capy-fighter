@@ -20,10 +20,25 @@ export function Arena({
 
     const [isExpectingMove, setIsExpectingMove] = useState<boolean>(false);
 
+    const [bgAudio] = useState<HTMLAudioElement>(new Audio("/assets/bg.ogg"));
+
     const [result, setResult] = useState<string | null>(null);
 
     const [currentPlayer, setCurrentPlayer] = useState<PlayerStats | null>(null);
     const [otherPlayer, setOtherPlayer] = useState<PlayerStats | null>(null);
+
+    const gameFinished = (isWinner: boolean) => {
+        const audio = new Audio(isWinner ? 'assets/won.wav' : 'assets/lost.wav');
+        audio.play();
+
+        if(isWinner) {
+            setResult("You Won!");
+        }else {
+            setResult("You Lost!");
+        }
+
+        bgAudio.pause();
+    }
 
     const getGameStatus = async (arenaId: string) => {
 
@@ -38,10 +53,10 @@ export function Arena({
 
 
         if(currentPlayer?.hp.toString() === '0'){
-            setResult("You Lost!");
+            gameFinished(false);
             return;
         }else if (otherPlayer?.hp.toString() === '0'){
-            setResult("You won!");
+            gameFinished(true);
             return;
         }
 
@@ -102,9 +117,9 @@ export function Arena({
         setOtherPlayer({ ...otherPlayer, hp: bot_hp });
 
         if (bot_hp.toString() === '0') {
-            setResult("You Won!")
+            gameFinished(true);
         } else if (player_hp.toString() === '0') {
-            setResult("You Lost!")
+            gameFinished(false);
         } else {
             setIsExpectingMove(true);
         }
@@ -120,6 +135,7 @@ export function Arena({
 
     useEffect(() => {
         getGameStatus(arena.objectId);
+        bgAudio.play();
     }, []);
 
 
