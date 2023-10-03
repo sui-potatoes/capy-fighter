@@ -44,7 +44,8 @@ module game::matchmaker {
         if (option::is_some(&self.request)) {
             let opponent = option::extract(&mut self.request);
             let match_id = df::remove(&mut self.id, player::kiosk(&opponent));
-            create_arena(match_id, player, opponent, ctx);
+            let arena_id = create_arena(match_id, player, opponent, ctx);
+            df::add(&mut self.id, match_id, arena_id);
             match_id
         } else {
             let match_id = new_id(ctx);

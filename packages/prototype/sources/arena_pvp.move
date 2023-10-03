@@ -31,6 +31,8 @@ module prototype::arena_pvp {
 
     /// Struct containing information about the Player.
     struct Player has store, drop {
+        /// The starting HP of the Player's Pokemon.
+        starting_hp: u64,
         /// The stats of the Player's Pokemon.
         stats: Stats,
         /// The player's address.
@@ -87,8 +89,11 @@ module prototype::arena_pvp {
 
     /// Join an existing arena and start the battle.
     entry fun join(arena: &mut Arena, ctx: &mut TxContext) {
+        let stats = generate_stats(derive(arena.seed, 1));
+
         option::fill(&mut arena.player_two, Player {
-            stats: generate_stats(derive(arena.seed, 1)),
+            starting_hp: stats::hp(&stats),
+            stats: stats,
             account: tx_context::sender(ctx),
             next_attack: option::none(),
             next_round: 0
@@ -140,7 +145,7 @@ module prototype::arena_pvp {
 
         // The player that is revealing.
         let player = tx_context::sender(ctx);
-        let is_p1 = is_player_one(arena, player);
+        let _is_p1 = is_player_one(arena, player);
 
         // Get both players (mutably).
         let (attacker, defender) = if (is_player_one(arena, player)) {
@@ -255,6 +260,7 @@ module prototype::arena_pvp {
         // Emit events and share the Arena
 
         let player_one = Player {
+            starting_hp: stats::hp(&player_stats),
             stats: player_stats,
             account: tx_context::sender(ctx),
             next_attack: option::none(),

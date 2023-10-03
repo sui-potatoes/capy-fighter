@@ -21,11 +21,13 @@ module game::arena {
     use sui::tx_context::TxContext;
     use sui::kiosk::{Self, KioskOwnerCap};
     use sui::object::{Self, ID, UID};
+    use sui::clock::Clock;
     use sui::transfer;
     use sui::bcs;
 
     use game::battle;
     use game::player::{Self, Player};
+
     use pokemon::stats::{Self, Stats};
 
     /// Trying to perform an action while still searching for P2;
@@ -99,9 +101,11 @@ module game::arena {
         self: &mut Arena,
         cap: &KioskOwnerCap,
         commitment: vector<u8>,
+        _clock: &Clock,
         _ctx: &mut TxContext
     ) {
         assert!(!is_over(self), EArenaOver);
+        assert!(!is_any_player_down(self), EArenaOver);
 
         let kiosk_id = kiosk::kiosk_owner_cap_for(cap);
 
@@ -130,9 +134,11 @@ module game::arena {
         cap: &KioskOwnerCap,
         player_move: u8,
         salt: vector<u8>,
+        _clock: &Clock,
         _ctx: &mut TxContext
     ) {
         assert!(!is_over(self), EArenaOver);
+        assert!(!is_any_player_down(self), EArenaOver);
 
         // The player that is revealing.
         let kiosk_id = kiosk::kiosk_owner_cap_for(cap);
@@ -186,6 +192,8 @@ module game::arena {
         if (next_round_cond) {
             self.round = self.round + 1;
 
+
+
             sui::event::emit(RoundResult {
                 arena: object::uid_to_address(&self.id),
                 attacker_hp: stats::hp(&attacker.stats),
@@ -209,6 +217,14 @@ module game::arena {
     }
 
     // === Internal ===
+
+    /// Returns true if any of the players has reached 0 HP.
+    fun is_any_player_down(self: &Arena): bool {
+        let p1 = option::borrow(&self.p1);
+        let p2 = option::borrow(&self.p2);
+
+        stats::hp(&p1.stats) == 0 || stats::hp(&p2.stats) == 0
+    }
 
     /// Returns true if the player is Player 1.
     fun is_player_one(self: &Arena, kiosk_id: ID): bool {

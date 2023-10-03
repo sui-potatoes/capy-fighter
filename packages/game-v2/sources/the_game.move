@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 module game::the_game {
-    use std::option::{Self, Option};
+    use std::option;
 
     use sui::bag;
     use sui::tx_context::{Self, TxContext};
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
     use sui::kiosk_extension as ext;
 
-    use game::player::{Self, Player};
+    use game::player;
+    use game::matchmaker::{Self, MatchPool};
 
     /// An extension is not installed and the user is trying to create a new player.
     const EExtensionNotInstalled: u64 = 0;
@@ -22,8 +23,13 @@ module game::the_game {
     /// The user is trying to do something, but is not the owner.
     const ENotOwner: u64 = 4;
 
+    // === Dynamic Field Keys ===
+
     /// The Dynamic Field Key for the Player.
     struct PlayerKey has store, copy, drop {}
+
+    /// The Dynamic Field Key for the Match.
+    struct MatchKey has store, copy, drop {}
 
     // === Extension ===
 
@@ -42,7 +48,11 @@ module game::the_game {
     // === The Game Itself ===
 
     /// Currently there can be only one player!
-    entry fun new_player(kiosk: &mut Kiosk, cap: &KioskOwnerCap, ctx: &mut TxContext) {
+    entry fun new_player(
+        kiosk: &mut Kiosk,
+        cap: &KioskOwnerCap,
+        ctx: &mut TxContext
+    ) {
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
 
@@ -60,27 +70,31 @@ module game::the_game {
         );
     }
 
-    /// Take the player to play the game.
-    public fun take_player(kiosk: &mut Kiosk, cap: &KioskOwnerCap, _ctx: &mut TxContext): Player {
+    /// Play the game by finding or creating a match.
+    /// The Match ID will be stored in the Extension storage.
+    entry fun play(
+        kiosk: &mut Kiosk,
+        cap: &KioskOwnerCap,
+        matches: &mut MatchPool,
+        ctx: &mut TxContext
+    ) {
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
         assert!(has_player(kiosk), ENoPlayer);
         assert!(!is_playing(kiosk), EPlayerIsPlaying);
 
-        let player = bag::borrow_mut(ext::storage_mut(Game {}, kiosk), PlayerKey {});
-        option::extract(player)
-    }
-
-    /// Return the player to the Kiosk.
-    public fun return_player(kiosk: &mut Kiosk, player: Player, _ctx: &mut TxContext) {
-        assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
-        assert!(is_playing(kiosk), EPlayerIsPlaying);
-
         let storage = ext::storage_mut(Game {}, kiosk);
-        let player_storage = bag::borrow_mut(storage, PlayerKey {});
+        let player = option::extract(bag::borrow_mut(storage, PlayerKey {}));
+        let match_id = matchmaker::find_or_create_match(matches, player, ctx);
 
-        option::fill(player_storage, player)
+        bag::add(storage, MatchKey {}, match_id);
     }
+
+    // entry fun finish_match(
+    //     kiosk: &mut Kiosk,
+    //     cap: &KioskOwnerCap,
+
+    // )
 
     // === Reads ===
 
@@ -94,12 +108,6 @@ module game::the_game {
     /// Aborts if there is no player.
     public fun is_playing(kiosk: &Kiosk): bool {
         assert!(has_player(kiosk), ENoPlayer);
-
-        let player = bag::borrow<PlayerKey, Option<Player>>(
-            ext::storage(Game {}, kiosk),
-            PlayerKey {}
-        );
-        
-        option::is_some(player)
+        bag::contains(ext::storage(Game {}, kiosk), MatchKey {})
     }
 }
