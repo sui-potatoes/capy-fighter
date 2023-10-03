@@ -13,8 +13,8 @@ export function ArenaTitle({
             <h3 className="text-3xl">
                 Arena Fight
             </h3>
-            <input value={arena?.objectId} className="block" disabled/>
-            <a href={`https://www.suiexplorer.com/object/${arena?.objectId}?network=devnet`} className="text-blue-500"
+            {/* <input value={arena?.objectId} className="block" disabled/> */}
+            <a href={`https://www.suiexplorer.com/object/${arena?.objectId}?network=devnet`} className="text-blue-500 text-lg"
                 target="_blank">
                 View on explorer
             </a>

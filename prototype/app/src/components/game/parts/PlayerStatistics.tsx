@@ -13,7 +13,7 @@ export function PlayerStatistics({ currentPlayer, otherPlayer }: PlayerStatsProp
             <div className=" whitespace-wrap break-words">
                 <h2 className="text-3xl text-left">YOU</h2>
                 <HealthBar initialHp={currentPlayer?.initial_hp ?? 0n} currentHp={currentPlayer?.hp ?? 0n} />
-                <p className="text-left text-xs">{JSON.stringify(currentPlayer)}</p>
+                <p className="text-left">{JSON.stringify(currentPlayer)}</p>
             </div>
             <div className="break-words text-right">
                 {
@@ -24,7 +24,7 @@ export function PlayerStatistics({ currentPlayer, otherPlayer }: PlayerStatsProp
                                 <HealthBar initialHp={otherPlayer?.initial_hp ?? 0n} currentHp={otherPlayer?.hp ?? 0n} />
                             </div>
 
-                            {otherPlayer && <p className="text-left text-xs">{JSON.stringify(otherPlayer)}</p>}
+                            {otherPlayer && <p className="text-right">{JSON.stringify(otherPlayer)}</p>}
                         </>
 
                     ) : <p>Waiting for player two...</p>

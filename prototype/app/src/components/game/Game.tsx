@@ -87,14 +87,13 @@ export function Game() {
               <button onClick={() => {
                 startPvP();
               }}>Start a PVP match</button>
-              <button onClick={()=>setJoinGame(true)}>Join a game</button>
+              <button onClick={()=>setJoinGame(!joinGame)}>Join a game</button>
             </div>
           </div>
         }
         {
           gameStarted && arena && <Arena arena={arena} gameType={gameType} end={end} />
         }
-
 
         {/* Join game by ID. */}
         {

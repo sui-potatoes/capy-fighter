@@ -22,7 +22,7 @@ function App() {
 
   return (
     <>
-      <div className="h-[300px] items-center justify-center">
+      <div className="items-center justify-center py-3 px-12">
 
         <div className="pb-3 text-2xl tracking-widest font-medium">
           Welcome to Capy Arcade.
@@ -30,7 +30,7 @@ function App() {
 
         {connected && <ActionBar email={email} logout={logout} /> }
 
-        <div className="container">
+        <div>
           {!connected && <Register email={email} setEmail={setEmail} login={login} />}
           {connected && <Game />}
         </div>
