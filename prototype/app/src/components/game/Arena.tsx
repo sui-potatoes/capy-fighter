@@ -12,8 +12,6 @@ export type ArenaProps = {
     gameType: GameTypes;
     end: () => void;
 }
-
-
 export function Arena({
     arena,
     gameType = GameTypes.PVB,
@@ -57,6 +55,7 @@ export function Arena({
         // for Player vs Bot, we always expect a move.
         if(gameType === GameTypes.PVB){
             setIsExpectingMove(true);
+            return;
         }
 
         // if we are waiting to reveal, and the other player attacked.
@@ -65,7 +64,7 @@ export function Arena({
              (currentPlayer.next_attack && currentPlayer.next_round! < otherPlayer.next_round!)) {
             console.log("Pending reveal is triggered!");
             // now we reveal.
-            await revealPvPMove({ arena, move: JSON.parse(localStorage.getItem('lastMove')) });
+            await revealPvPMove({ arena, move: JSON.parse(localStorage.getItem('lastMove') as string)});
             // we refetch game state after revealing.
             getGameStatus(arenaId);
 
