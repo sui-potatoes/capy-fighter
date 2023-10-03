@@ -8,16 +8,12 @@
 /// primitives defined throughout the application to implement business logic.
 /// Think of it as the main interface and a router for the application.
 module game::the_game {
-    // use std::option::{Self, Option};
-
     use sui::kiosk::{Self, Kiosk, PurchaseCap, KioskOwnerCap};
     use sui::tx_context::TxContext;
     use sui::object::{Self, ID};
     use sui::kiosk_extension;
     use sui::bag;
 
-    use suifrens::suifrens::SuiFren;
-    use suifrens::capy::Capy;
     use pokemon::stats::Stats;
 
     use matchmaker::matchmaker::{Self as match, Order, Match};
@@ -31,20 +27,6 @@ module game::the_game {
     const EExtensionNotInstalled: u64 = 2;
     /// Trying to accept the battle in a wrong Kiosk.
     const EWrongKiosk: u64 = 3;
-
-    /// The BattleOrder is a currently open battle that is being played. Can only
-    /// be resolved by the matchmaking application (and canceled). Once the
-    /// Matchmaking module finds the right opponent, it will start the battle.
-    struct BattleOrder has store {
-        /// The PurchaseCap that is used to lock the Capy (not for sale).
-        purchase_cap: PurchaseCap<SuiFren<Capy>>,
-        /// The ID of the Capy that is participating in the battle.
-        capy_id: ID,
-        /// The stats of the Capy.
-        stats: Stats,
-        // The opponent's Kiosk address.
-        // opponent: Option<address>
-    }
 
     /// Dynamic field for the current battle. There can be only 1 battle at a time.
     struct Battle has store, copy, drop {}
