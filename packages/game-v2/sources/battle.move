@@ -19,6 +19,15 @@ module game::battle {
     /// Total number of Moves.
     const TOTAL_MOVES: u64 = 8;
 
+    /// The starter moves for each of the 4 types.
+    /// There's only 4 types for now, and 8 moves total.
+    const STARTER_MOVES: vector<vector<u8>> = vector[
+        vector[ 0, 1, 6, 2 ],
+        vector[ 2, 3, 0, 4 ],
+        vector[ 4, 5, 2, 6 ],
+        vector[ 6, 7, 4, 0 ],
+    ];
+
     const MOVES_SPECIAL: vector<bool> = vector[
         false, true, // Hydro Pump // Aqua Tail
         false, true, // Inferno // Flamethrower
@@ -111,5 +120,11 @@ module game::battle {
         stats::decrease_hp(defender, raw_damage);
 
         (raw_damage, effectiveness, move_ == attacker_type)
+    }
+
+    /// Returns the set of starter moves for the given type.
+    public fun starter_moves(type: u8): vector<u8> {
+        assert!(type < 4, EWrongMove);
+        *vector::borrow(&STARTER_MOVES, (type as u64))
     }
 }

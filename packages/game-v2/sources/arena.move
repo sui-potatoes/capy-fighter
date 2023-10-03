@@ -19,7 +19,7 @@ module game::arena {
     use std::option::{Self, Option};
 
     use sui::tx_context::TxContext;
-    use sui::kiosk::{Self, KioskOwnerCap};
+    use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
     use sui::object::{Self, ID, UID};
     use sui::clock::{Self, Clock};
     use sui::hash::blake2b256;
@@ -30,6 +30,13 @@ module game::arena {
     use game::player::{Self, Player};
 
     use pokemon::stats::{Self, Stats};
+
+    friend game::the_game;
+
+    /// The timeout for the game; if a player doesn't act within 3 minutes, the
+    /// game is considered abandoned. The Player is banned from the game for
+    /// 10 minutes.
+    const TIMEOUT: u64 = 180000; // 3 minutes
 
     /// Trying to perform an action while still searching for P2;
     const EArenaNotReady: u64 = 0;
@@ -58,6 +65,8 @@ module game::arena {
         p1: Option<ActivePlayer>,
         /// Player 2 stats and the current game state.
         p2: Option<ActivePlayer>,
+        /// Whether Arena has reached the final state.
+        is_over: bool
     }
 
     /// Currently active player (wraps the Player struct).
@@ -90,6 +99,7 @@ module game::arena {
             seed,
             game_id,
             round: 0,
+            is_over: false,
             p1: add_player(p1),
             p2: add_player(p2),
         });
@@ -200,6 +210,26 @@ module game::arena {
         };
     }
 
+    // === Protected ===
+
+    public(friend) fun wrap_up(self: &mut Arena, kiosk: &Kiosk): (Player, bool) {
+        let ActivePlayer {
+            player,
+            stats: _,
+            kiosk_id: _,
+            next_attack: _,
+            next_round: _,
+        } = if (is_player_one(self, object::id(kiosk))) {
+            option::extract(&mut self.p1)
+        } else if (is_player_two(self, object::id(kiosk))) {
+            option::extract(&mut self.p2)
+        } else {
+            abort EUnknownSender // we don't know who you are bruh
+        };
+
+        (player, true)
+    }
+
     // === Reads ===
 
     /// Returns the final state of the self. Given that the arena can only be
@@ -208,6 +238,9 @@ module game::arena {
     public fun is_over(self: &Arena): bool {
         option::is_none(&self.p1) || option::is_none(&self.p2)
     }
+
+    /// Returns the game ID.
+    public fun game_id(self: &Arena): ID { self.game_id }
 
     /// Returns the current round of the game.
     public fun round(self: &Arena): u8 { self.round }

@@ -12,6 +12,9 @@ module game::matchmaker {
     use game::player::{Self, Player};
     use game::arena::create_arena;
 
+    // TODO: temporary.
+    friend game::the_game;
+
     /// The main storage for current matches.
     struct MatchPool has key, store {
         id: UID,
@@ -62,6 +65,17 @@ module game::matchmaker {
     }
 
     // === Internal ===
+
+    /// Get the rebate for removing the marker from the pool. Safe to call by
+    /// anyone even if marker rebate was already claimed.
+    public(friend) fun try_marker_rebate(
+        self: &mut MatchPool,
+        match_id: ID,
+    ) {
+        if (df::exists_(&self.id, match_id)) {
+            let _: ID = df::remove(&mut self.id, match_id);
+        }
+    }
 
     /// Util: generate a new unique ID for a match (to listen to).
     fun new_id(ctx: &mut TxContext): ID {

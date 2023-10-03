@@ -32,20 +32,27 @@ module game::player {
         /// Using this field to punish the player for bad behavior. Abandoning
         /// the match or cheating will result in a ban.
         banned_until: Option<u64>,
-        // ...
+        /// The moves of the player; max 4.
+        /// Currently assigned based on the type of the player.
+        moves: vector<u8>,
+        /// The rank of the player; starts at 1200.
+        rank: u64
     }
 
     /// Create a new Player.
     public(friend) fun new(
         kiosk: ID,
         type: u8,
+        moves: vector<u8>,
         seed: vector<u8>,
         _ctx: &mut TxContext
     ): Player {
         Player {
             kiosk,
+            moves, // *vector::borrow(&STARTER_MOVES, (type as u64))
             stats: generate_stats(type, seed),
             banned_until: option::none(),
+            rank: 1200
         }
     }
 
