@@ -7,7 +7,7 @@ module game::the_game {
 
     use sui::bcs;
     use sui::bag;
-    use sui::object;
+    use sui::object::{Self, ID};
     use sui::kiosk_extension as ext;
     use sui::tx_context::{Self, TxContext};
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
@@ -54,7 +54,7 @@ module game::the_game {
     const PERMISSIONS: u128 = 2;
 
     /// Add an extension to the Kiosk.
-    entry fun add(kiosk: &mut Kiosk, cap: &KioskOwnerCap, ctx: &mut TxContext) {
+    public fun add(kiosk: &mut Kiosk, cap: &KioskOwnerCap, ctx: &mut TxContext) {
         ext::add(Game {}, kiosk, cap, PERMISSIONS, ctx)
     }
 
@@ -70,7 +70,7 @@ module game::the_game {
         assert!(type < 4, EInvalidUserType);
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
-        assert!(has_player(kiosk), EPlayerAlreadyExists);
+        assert!(!has_player(kiosk), EPlayerAlreadyExists);
 
         // very rough pseudo random seed generator
         let moves = battle::starter_moves(type);
@@ -115,7 +115,7 @@ module game::the_game {
         kiosk: &mut Kiosk,
         arena: &mut Arena,
         cap: &KioskOwnerCap,
-        matches: &mut MatchPool,
+        _matches: &mut MatchPool,
         _ctx: &mut TxContext
     ) {
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
@@ -123,7 +123,7 @@ module game::the_game {
         assert!(has_player(kiosk), ENoPlayer);
         assert!(is_playing(kiosk), EPlayerIsPlaying);
 
-        let (player, is_winner) = arena::wrap_up(arena, kiosk);
+        let (player, _is_winner) = arena::wrap_up(arena, kiosk);
         let storage = ext::storage_mut(Game {}, kiosk);
         let match_id = bag::remove(storage, MatchKey {});
 
@@ -134,7 +134,29 @@ module game::the_game {
         // TODO: do the ELO ranking
 
         option::fill(bag::borrow_mut(storage, PlayerKey {}), player);
-        matchmaker::try_marker_rebate(matches, match_id);
+
+        // can't do this just yet; doesn't play well if one of the players did
+        // the cleanup and the other one can't find the arena
+        // matchmaker::try_marker_rebate(matches, match_id);
+    }
+
+    /// Cancel an active search if the match is not found yet.
+    entry fun cancel_search(
+        kiosk: &mut Kiosk,
+        matches: &mut MatchPool,
+        cap: &KioskOwnerCap,
+        ctx: &mut TxContext
+    ) {
+        assert!(kiosk::has_access(kiosk, cap), ENotOwner);
+        assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
+        assert!(has_player(kiosk), ENoPlayer);
+        assert!(is_playing(kiosk), EPlayerIsPlaying);
+
+        let player = matchmaker::cancel_search(matches, cap, ctx);
+        let storage = ext::storage_mut(Game {}, kiosk);
+        let _: ID = bag::remove(storage, MatchKey {});
+
+        option::fill(bag::borrow_mut(storage, PlayerKey {}), player);
     }
 
     // === Reads ===

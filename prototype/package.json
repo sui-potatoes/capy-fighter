@@ -11,7 +11,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@mysten/sui.js": "^0.41.0",
+    "@mysten/bcs": "^0.8.0",
+    "@mysten/kiosk": "^0.7.1",
+    "@mysten/sui.js": "^0.43.0",
     "blake2b": "^2.1.4",
     "commander": "^11.0.0",
     "dotenv": "^16.3.1",

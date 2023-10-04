@@ -167,6 +167,8 @@ module game::arena {
         assert!(still_time(self, clock), EArenaOver);
         assert!(!is_any_player_down(self), EArenaOver);
 
+        // TODO: check that the move is ALLOWED in the player struct;
+
         // The player that is revealing.
         let kiosk_id = kiosk::kiosk_owner_cap_for(cap);
 
@@ -204,6 +206,7 @@ module game::arena {
         );
 
         attacker.next_round = self.round + 1;
+
         let next_round_cond = option::is_none(&defender.next_attack)
             && (defender.next_round == (self.round + 1));
 
@@ -262,11 +265,12 @@ module game::arena {
     }
 
     /// Returns true if the player is still in the game.
-    public fun still_time(self: &Arena, clock: &Clock): bool {
-        let now = clock::timestamp_ms(clock);
-        let last_ms = self.last_action_timestamp_ms;
+    public fun still_time(_self: &Arena, _clock: &Clock): bool {
+        // let now = clock::timestamp_ms(clock);
+        // let last_ms = self.last_action_timestamp_ms;
 
-        self.last_action_timestamp_ms == 0 || now > (last_ms + TIMEOUT)
+        // self.last_action_timestamp_ms == 0 || now > (last_ms + TIMEOUT)
+        true
     }
 
     /// Returns the game ID.

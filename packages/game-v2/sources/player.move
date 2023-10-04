@@ -15,6 +15,9 @@ module game::player {
 
     use pokemon::stats::{Self, Stats};
 
+    /// The median value for stats.
+    const MEDIAN: u8 = 35;
+
     // TODO: using a friend before we recompose the system in a better way.
     friend game::the_game;
 
@@ -122,7 +125,7 @@ module game::player {
 
     /// Smoothens out the value by making it closer to median = 50.
     fun smooth(value: u8): u8 {
-        let value = ((value % 50) + 50) / 2;
+        let value = ((value % MEDIAN) + MEDIAN) / 2;
         if (value < 10) {
             10
         } else {

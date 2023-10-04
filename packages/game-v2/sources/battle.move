@@ -90,6 +90,7 @@ module game::battle {
     ): (u64, u64, bool) {
         assert!(move_ < TOTAL_MOVES, EWrongMove);
 
+        let move_type = *vector::borrow(&MOVES_TYPES, move_);
         let move_power = *vector::borrow(&MOVES_POWER, move_);
         let is_special = *vector::borrow(&MOVES_SPECIAL, move_);
 
@@ -107,7 +108,7 @@ module game::battle {
         // Get the effectiveness table for this specifc Move, then look up
         // defender's type in the table by index. That would be the TYPE1
         // modifier.
-        let move_effectiveness = *vector::borrow(&MOVES_EFFECTIVENESS, move_);
+        let move_effectiveness = *vector::borrow(&MOVES_EFFECTIVENESS, (move_type as u64));
         let effectiveness = *vector::borrow(&move_effectiveness, defender_type);
 
         // Effectiveness of a move against the type is calculated as:

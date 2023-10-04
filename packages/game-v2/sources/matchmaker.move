@@ -5,12 +5,18 @@ module game::matchmaker {
     use std::option::{Self, Option};
 
     use sui::tx_context::{fresh_object_address, TxContext};
+    use sui::kiosk::{Self, KioskOwnerCap};
     use sui::object::{Self, ID, UID};
     use sui::dynamic_field as df;
     use sui::transfer;
 
     use game::player::{Self, Player};
     use game::arena::create_arena;
+
+    /// For when the player is not waiting for a match.
+    const ENoSearch: u64 = 0;
+    /// For when player is not from this Kiosk.
+    const ENotFromKiosk: u64 = 1;
 
     // TODO: temporary.
     friend game::the_game;
@@ -62,6 +68,21 @@ module game::matchmaker {
         // Tip: we can link `match_id` and `arena_id` to be claimed when the
         // game is over; this way we can track the game state and the winner
         // without listening to any events.
+    }
+
+    /// Cancel the search if the player is still waiting.
+    public(friend) fun cancel_search(
+        self: &mut MatchPool,
+        cap: &KioskOwnerCap,
+        _ctx: &mut TxContext
+    ): Player {
+        assert!(option::is_some(&self.request), ENoSearch);
+
+        let player: Player = option::extract(&mut self.request);
+        df::remove<ID, ID>(&mut self.id, player::kiosk(&player));
+
+        assert!(player::kiosk(&player) == kiosk::kiosk_owner_cap_for(cap), ENotFromKiosk);
+        player
     }
 
     // === Internal ===
