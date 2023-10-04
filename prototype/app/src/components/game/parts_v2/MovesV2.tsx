@@ -64,7 +64,7 @@ export function MovesV2({
 
                 {getMoves().map((move, index) => {
                     return (
-                        <button key={index} className="bg-transparent border-black bg-black bg-opacity-60 py-6 rounded-lg"
+                        <button key={index} className="bg-transparent border-black bg-black bg-opacity-50 py-3 md:py-6 rounded-lg"
                             onKeyUp={(e) => { console.log(e) }}
                             onClick={() => {
                                 makeMoveHandler(move);

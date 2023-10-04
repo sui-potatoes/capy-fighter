@@ -27,7 +27,7 @@ function SinglePlayerStats({ player, isCurrent }: { player: PlayerStats | null; 
 
     return (
         <div className={`hitespace-wrap break-words ${!isCurrent && 'text-right'}`}>
-            <h2 className={`text-3xl ${isCurrent ? 'text-left' : 'text-right'}`}>{isCurrent ? 'YOU' : 'Other Player'}</h2>
+            <h2 className={`md:text-3xl ${isCurrent ? 'text-left' : 'text-right'}`}>{isCurrent ? 'YOU' : 'Other Player'}</h2>
             <div className={`bg-black bg-opacity-40 w-fit ${!isCurrent && 'flex ml-auto justify-end'}`}>
 
                 <HealthBar initialHp={player?.initial_hp ?? 0n} currentHp={player?.hp ?? 0n} />
@@ -46,7 +46,7 @@ function SinglePlayerStats({ player, isCurrent }: { player: PlayerStats | null; 
                 </div>
             }
 
-            <img src="assets/capy_player.png" className={`w-[80px] md:w-[160px] ${!isCurrent && 'scale-x-[-1] ml-auto'}`} />
+            <img src="assets/capy_player.png" className={`w-[80px] md:w-[160px] 2xl:w-[200px] mt-3 ${!isCurrent && 'scale-x-[-1] ml-auto'}`} />
         </div>
     )
 }

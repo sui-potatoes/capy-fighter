@@ -22,15 +22,16 @@ function AppV2() {
 
   return (
     <>
-      <div className="items-center justify-center py-3 md:px-12">
+      <div className="items-center max-md:grid overflow-hidden justify-center py-1 md:px-12">
 
-        <div className="pb-3 text-2xl tracking-widest font-medium">
-          Welcome to Capy Arcade.
+        <div className="order-2 lg:order-1">
+          <div className="pb-3 text-2xl tracking-widest font-medium text-center">
+            Welcome to Capy Arcade.
+          </div>
+          {connected && <ActionBar email={email} logout={logout} />}
         </div>
 
-        {connected && <ActionBar email={email} logout={logout} /> }
-
-        <div>
+        <div className="order-1 lg:order-2">
           {!connected && <Register email={email} setEmail={setEmail} login={login} />}
           {connected && <GameV2 />}
         </div>

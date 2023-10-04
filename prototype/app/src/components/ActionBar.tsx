@@ -31,15 +31,15 @@ export function ActionBar({ email, logout }: ActionBarProps) {
     }
 
     return (
-        <div className="grid md:grid-cols-2 gap-10 items-center border-b-2 pb-2 border-gray-700">
-            <div className="flex gap-5 items-center">
-                <button onClick={requestTokens}>Request Devnet Tokens</button>
+        <div className="grid md:grid-cols-2 max-md:text-center gap-10 items-center border-b-2 pb-2 border-gray-700">
+            <div className="md:flex gap-5 items-center">
+                <button onClick={requestTokens} className="py-0">Request Devnet Tokens</button>
                 <p>
                     Your balance: {beautifyBalance().toString()} SUI
                 </p>
 
             </div>
-            <div className="text-right">You are connected as: {email}, <button className="underline p-0 border-none bg-transparent" onClick={logout}>Logout?</button></div>
+            <div className="text-center md:text-right">You are connected as: {email}, <button className="underline p-0 border-none bg-transparent" onClick={logout}>Logout?</button></div>
         </div>
 
     )
