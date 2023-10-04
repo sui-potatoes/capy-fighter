@@ -20,6 +20,8 @@ export function ActionBar({ email, logout }: ActionBarProps) {
             owner: unsafe_getConnectedAddress(email)
         }).then(res => {
             setBalance(BigInt(res.totalBalance) / MIST_PER_SUI);
+            // auto request tokens if balance is 0
+            if(Number(res.totalBalance) === 0) requestTokens();
         })
     }
 
