@@ -3,11 +3,12 @@ import { parseGameStatsFromArena } from "../../helpers/game";
 import { SharedObjectRef } from "@mysten/sui.js/bcs";
 import { useUserPlayer } from "../../hooks/useUserPlayer";
 import { PlayerCreation } from "./parts_v2/PlayerCreation";
-import { PlayerPreview } from "./parts_v2/PlayerPreview";
 import { useUserGameData } from "../../hooks/useUserGameData";
 import { cancelSearch, getActiveMatch, getArenaId, requestNewGame } from "../../helpers/game_v2";
 import { ArenaV2 } from "./parts_v2/ArenaV2";
 import { useBalance } from "../../hooks/useBalance";
+import { WaitingForGame } from "./parts_v2/WaitingForGame";
+import { StartGameScreen } from "./parts_v2/StartGameScreen";
 
 // The game options.
 export function GameV2() {
@@ -39,7 +40,6 @@ export function GameV2() {
   }
 
   useEffect(() => {
-
     if (isInGame) {
       start();
     }
@@ -48,7 +48,6 @@ export function GameV2() {
 
   const cancel = async () => {
     if (!kiosk) return;
-    setLoading(true);
     await cancelSearch(kiosk);
     reset();
     await getData();
@@ -56,9 +55,8 @@ export function GameV2() {
   }
 
   // we start PvP v2.
-  const start = async () => {
+  const start = async (force?: boolean) => {
     if (!extension) return;
-    // we begin by allowing the user to create a player.
     if (!player && !isInGame) return;
 
     const hasMatch = await getActiveMatch(extension);
@@ -69,8 +67,9 @@ export function GameV2() {
 
       const arenaId = await getArenaId(hasMatch.matchId);
 
-      if (!arenaId){
-        setTimeout(()=>{
+      if (arenaId.error) {
+        console.log("this one triggers.")
+        setTimeout(() => {
           start();
         }, 2000);
         return;
@@ -85,10 +84,12 @@ export function GameV2() {
       ///
     } else {
 
-      const game = await requestNewGame();
-      reset();
-      getData();
-      return;
+      if(force){
+        await requestNewGame();
+        reset();
+        await getData();
+        return;
+      }
     }
 
     if (arena) {
@@ -101,47 +102,24 @@ export function GameV2() {
     reset();
     setGameStarted(false);
     setArena(null);
-
     getData();
   }
 
   if (balance === 0) return <p>Please use the faucet before you can play the game!</p>;
   if (loading) return <p>Loading....</p>;
 
+  // no player and not in game, we ask the user to select a player type.
+  if (!player && !isInGame) return <PlayerCreation created={() => { reset(); getData() }} />
+
+  // if we're waiting for a game to be found.
+  if (isInGame && !gameStarted) return <WaitingForGame cancel={cancel} />
+
+
+  if (player && !gameStarted) return <StartGameScreen disabled={!kiosk} start={start} />
+
   return (
-    <div className="py-12 text-center">
-
+    <div className="text-center">
       <div>
-        {!player && !isInGame && <PlayerCreation />}
-
-        {
-          isInGame && !gameStarted && <div>
-            <p>
-              Waiting for a matching game...
-            </p>
-            <button className="mt-3"
-              onClick={cancel}
-            >Cancel search</button>
-
-          </div>
-        }
-        {
-          player &&
-          !gameStarted &&
-          <div>
-            <p>
-              Welcome back! Click the following button to automatically find someone to play with.
-            </p>
-            <div className="grid md:flex gap-5 justify-center py-6">
-
-              <button onClick={() => {
-                start();
-              }}
-                disabled={!kiosk}
-              >Find a match</button>
-            </div>
-          </div>
-        }
         {
           gameStarted && arena && kiosk &&
           <ArenaV2 arena={arena} kiosk={kiosk} end={end} />

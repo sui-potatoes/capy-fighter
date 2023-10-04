@@ -34,6 +34,7 @@ export function useUserPlayer({
             setLoading(false);
             return;
         }
+
         //@ts-ignore-next-line;
         const playerData = player.data.content.fields.value?.fields;
 

@@ -22,7 +22,7 @@ function AppV2() {
 
   return (
     <>
-      <div className="items-center justify-center py-3 px-12">
+      <div className="items-center justify-center py-3 md:px-12">
 
         <div className="pb-3 text-2xl tracking-widest font-medium">
           Welcome to Capy Arcade.

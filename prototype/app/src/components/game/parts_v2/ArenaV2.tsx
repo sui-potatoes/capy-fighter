@@ -127,12 +127,11 @@ export function ArenaV2({
 
     return (
 
-        <div>
+        <div className="bg-contain py-12 min-h-[600px] before:bg-black before:bg-opacity-40" style={{backgroundImage: "url('assets/bg.jpg')"}}>
             <ArenaTitle arena={arena} gameType={GameTypes.PVP_V2} />
             <ArenaResult result={result} end={end} />
-
             {!result &&
-                <>
+                <div>
                     <PlayerStatistics
                         currentPlayer={currentPlayer}
                         otherPlayer={otherPlayer} />
@@ -151,12 +150,14 @@ export function ArenaV2({
                                 cleanUpGame({
                                     arena,
                                     cap: kiosk
+                                }).then(() => {
+                                    window.location.reload();
                                 });
-                                window.location.reload();
+               
                             }
                         }>Taking too long? End Game!</button>
                         </div>}
-                </>
+                </div>
             }
 
         </div>

@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { TYPES, createPlayer } from "../../../helpers/game_v2";
 
-
-
 // A player creation component.
-export function PlayerCreation() {
+export function PlayerCreation({
+    created
+}: { created: () => void }) {
 
     const [creating, setCreating] = useState<boolean>(false);
 
@@ -13,7 +13,7 @@ export function PlayerCreation() {
         setCreating(true);
 
         createPlayer(type).then(res => {
-            console.log(res);
+            created();
         }).catch(e => {
             console.log(e);
         })

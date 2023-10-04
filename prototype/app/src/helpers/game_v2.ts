@@ -269,7 +269,9 @@ export async function getArenaId(matchId: string) {
         },
     });
 
-    if (error) return null;
+    if (error) return {
+        error
+    };
 
     // @ts-ignore-next-line
     return data.content.fields.value

@@ -14,7 +14,7 @@ export function ArenaTitle({ arena, gameType }: ArenaTitleProps) {
         window.navigator.clipboard.writeText(window.location.origin + '/?join=' + arena?.objectId);
     }
     return (
-        <div className="mb-6">
+        <div className="mb-3 bg-black w-fit px-12 mx-auto bg-opacity-60">
             <h2 className="pb-0">Arena Fight
                 {
                     gameType === GameTypes.PVP &&

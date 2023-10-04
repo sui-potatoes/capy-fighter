@@ -60,11 +60,11 @@ export function MovesV2({
         <div>
             <h2 className="text-3xl mb-3">Choose your next move!</h2>
 
-            <div className="grid md:grid-cols-4 gap-5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-5 px-6">
 
                 {getMoves().map((move, index) => {
                     return (
-                        <button key={index} className="bg-transparent border-black py-6 rounded-lg"
+                        <button key={index} className="bg-transparent border-black bg-black bg-opacity-60 py-6 rounded-lg"
                             onKeyUp={(e) => { console.log(e) }}
                             onClick={() => {
                                 makeMoveHandler(move);
