@@ -14,6 +14,7 @@ export function Moves({
     const makeMoveHandler = (move: GameMove) => {
 
         const audio = new Audio(move.soundEffect);
+        audio.volume = 0.1;
         audio.play();
         makeMove(move);
     }

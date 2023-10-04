@@ -29,6 +29,7 @@ export function Arena({
 
     const gameFinished = (isWinner: boolean) => {
         const audio = new Audio(isWinner ? 'assets/won.wav' : 'assets/lost.wav');
+        audio.volume = 0.1;
         audio.play();
 
         if(isWinner) {
@@ -131,9 +132,19 @@ export function Arena({
         setIsExpectingMove(false);
     }
 
+    const handleBgAudioRepeat = (bgAudio: HTMLAudioElement) => {
+        bgAudio.currentTime = 0;
+        bgAudio.play();
+    }
+
     useEffect(() => {
         getGameStatus(arena.objectId);
         bgAudio.play();
+        bgAudio.addEventListener('ended', () => handleBgAudioRepeat(bgAudio));
+
+        return () => {
+            bgAudio.removeEventListener('ended', () => handleBgAudioRepeat(bgAudio));
+        }
     }, []);
 
 
