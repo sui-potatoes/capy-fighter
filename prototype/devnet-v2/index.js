@@ -12,7 +12,6 @@ import { KioskClient, Network, KioskTransaction } from "@mysten/kiosk";
 import blake2b from "blake2b";
 import { bcs } from "@mysten/sui.js/bcs";
 import { promisify } from "util";
-import { combinePartialSigs } from "@mysten/sui.js";
 
 /** Wait for the given number of ms */
 const wait = promisify(setTimeout);
@@ -104,8 +103,6 @@ async function newAccount() {
     let tx = new TransactionBlock();
     let cap = tx.objectRef(kioskOwnerCaps[0]);
     let kioskArg = tx.object(kioskIds[0]);
-
-    combinePartialSigs
     
     tx.moveCall({
       target: `${pkg}::the_game::add`,
