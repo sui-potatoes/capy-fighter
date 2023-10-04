@@ -15,7 +15,9 @@ function SinglePlayerStats({ player, isCurrent }: { player: PlayerStats | null; 
         special_attack: 'Sp. Att.',
         special_defense: 'Sp. Def.',
         speed: 'Speed',
+        type: 'Type',
     }
+
     if (!player) return <p>Waiting for player...</p>
 
     return (

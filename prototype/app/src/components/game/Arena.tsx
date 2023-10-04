@@ -20,7 +20,7 @@ export function Arena({
 
     const [isExpectingMove, setIsExpectingMove] = useState<boolean>(false);
 
-    const [bgAudio] = useState<HTMLAudioElement>(new Audio("/assets/bg.ogg"));
+    const [bgAudio] = useState<HTMLAudioElement>(new Audio("/assets/bg_dark.mp3"));
 
     const [result, setResult] = useState<string | null>(null);
 
@@ -64,7 +64,7 @@ export function Arena({
 
         if(!otherPlayer){
             // we poll to get the status of the game until another player joins.
-            setTimeout(() => { getGameStatus(arenaId) }, 2500); 
+            setTimeout(() => { getGameStatus(arenaId) }, 2500);
             return;
         }
         // for Player vs Bot, we always expect a move.
@@ -75,7 +75,7 @@ export function Arena({
 
         // if we are waiting to reveal, and the other player attacked.
         // It's time to reveal!
-        if((currentPlayer.next_attack && otherPlayer.next_attack) || 
+        if((currentPlayer.next_attack && otherPlayer.next_attack) ||
              (currentPlayer.next_attack && currentPlayer.next_round! < otherPlayer.next_round!)) {
             console.log("Pending reveal is triggered!");
             // now we reveal.
@@ -96,14 +96,12 @@ export function Arena({
         if(!currentPlayer.next_attack && currentPlayer.next_round! <= otherPlayer.next_round!) {
             setIsExpectingMove(true);
             return;
-        } 
+        }
 
         // in any other case. poll! :D
         setTimeout(()=>{
             getGameStatus(arenaId)
         }, 1000)
-
-        
     }
 
     const makePvBMove = async (move: GameMove) => {
@@ -148,7 +146,7 @@ export function Arena({
             {!result &&
                 <>
                     <PlayerStatistics
-                        currentPlayer={currentPlayer} 
+                        currentPlayer={currentPlayer}
                         otherPlayer={otherPlayer} />
 
                     {isExpectingMove && <Moves makeMove={
