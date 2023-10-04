@@ -6,6 +6,9 @@ import { ArenaTitle } from "./parts/ArenaTitle";
 import { ArenaResult } from "./parts/ArenaResult";
 import { PlayerStatistics } from "./parts/PlayerStatistics";
 import { unsafe_getConnectedAddress } from "../../helpers/account";
+import { useUserGameData } from "../../hooks/useUserGameData";
+import { MovesV2 } from "./parts_v2/Moves_v2";
+import { GameMoveV2 } from "../../helpers/game_v2";
 
 export type ArenaProps = {
     arena: SharedObjectRef;
@@ -17,6 +20,8 @@ export function Arena({
     gameType = GameTypes.PVB,
     end
 }: ArenaProps) {
+
+    const {kiosk} = useUserGameData();
 
     const [isExpectingMove, setIsExpectingMove] = useState<boolean>(false);
 
@@ -41,17 +46,22 @@ export function Arena({
         bgAudio.pause();
     }
 
+    const isCurrentPlayer = (player: PlayerStats | null) => {
+        if(!player) return false;
+        return player.account === unsafe_getConnectedAddress() || player.account === kiosk?.kioskId;
+    }
+
     const getGameStatus = async (arenaId: string) => {
 
         setIsExpectingMove(false);
-        const stats = await parseGameStatsFromArena(arenaId, gameType === GameTypes.PVP);
+        const stats = await parseGameStatsFromArena(arenaId, gameType === GameTypes.PVP_V2);
 
-        const currentPlayer = stats.playerOne?.account === unsafe_getConnectedAddress() ? stats.playerOne : stats.playerTwo;
-        const otherPlayer  = stats.playerOne?.account !== unsafe_getConnectedAddress() ? stats.playerOne : stats.playerTwo;
+        const currentPlayer = isCurrentPlayer(stats.playerOne) ? 
+                stats.playerOne : stats.playerTwo;
+        const otherPlayer  = isCurrentPlayer(stats.playerTwo) ? stats.playerOne : stats.playerTwo;
 
         setCurrentPlayer(currentPlayer);
         setOtherPlayer(otherPlayer);
-
 
         if(currentPlayer?.hp.toString() === '0'){
             gameFinished(false);
@@ -132,6 +142,14 @@ export function Arena({
         setIsExpectingMove(false);
     }
 
+
+    const commitMoveV2 = async (move: GameMoveV2) => {
+        localStorage.setItem('lastMove', JSON.stringify(move));
+        // await commitPvPMove({ arena, move });
+        getGameStatus(arena.objectId);
+        setIsExpectingMove(false);
+    }
+
     const handleBgAudioRepeat = (bgAudio: HTMLAudioElement) => {
         bgAudio.currentTime = 0;
         bgAudio.play();
@@ -151,7 +169,7 @@ export function Arena({
     return (
 
         <div>
-            <ArenaTitle arena={arena} />
+            <ArenaTitle arena={arena} gameType={gameType} />
             <ArenaResult result={result} end={end} />
 
             {!result &&
@@ -160,8 +178,9 @@ export function Arena({
                         currentPlayer={currentPlayer}
                         otherPlayer={otherPlayer} />
 
-                    {isExpectingMove && <Moves makeMove={
+                    {isExpectingMove && gameType !== GameTypes.PVP_V2 &&  <Moves makeMove={
                         gameType === GameTypes.PVB ? makePvBMove : commitMove} />}
+                    {isExpectingMove && currentPlayer && gameType === GameTypes.PVP_V2 &&  <MovesV2 playerStats={currentPlayer} makeMove={commitMoveV2} />}
 
                     {!isExpectingMove && <div className="text-center py-12">Waiting for the other player's move</div>}
                 </>

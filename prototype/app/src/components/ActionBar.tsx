@@ -2,6 +2,7 @@ import { getFaucetHost, requestSuiFromFaucetV1 } from "@mysten/sui.js/faucet";
 import { getSuiClient, unsafe_getConnectedAddress } from "../helpers/account";
 import { useEffect, useState } from "react";
 import { MIST_PER_SUI } from "@mysten/sui.js/utils";
+import { useBalance } from "../hooks/useBalance";
 
 export type ActionBarProps = {
     email: string,
@@ -9,21 +10,12 @@ export type ActionBarProps = {
 }
 
 export function ActionBar({ email, logout }: ActionBarProps) {
-    const [balance, setBalance] = useState<bigint>(0n);
+
+    const { balance, getBalance } = useBalance();
 
     useEffect(() => {
         getBalance();
     }, [email]);
-
-    const getBalance = async () => {
-        getSuiClient().getBalance({
-            owner: unsafe_getConnectedAddress(email)
-        }).then(res => {
-            setBalance(BigInt(res.totalBalance) / MIST_PER_SUI);
-            // auto request tokens if balance is 0
-            if(Number(res.totalBalance) === 0) requestTokens();
-        })
-    }
 
     const requestTokens = async () => {
         requestSuiFromFaucetV1({
@@ -34,12 +26,16 @@ export function ActionBar({ email, logout }: ActionBarProps) {
         })
     }
 
+    const beautifyBalance = () => {
+        return BigInt(balance) / MIST_PER_SUI;
+    }
+
     return (
         <div className="grid md:grid-cols-2 gap-10 items-center border-b-2 pb-2 border-gray-700">
             <div className="flex gap-5 items-center">
                 <button onClick={requestTokens}>Request Devnet Tokens</button>
                 <p>
-                    Your balance: {balance.toString()} SUI
+                    Your balance: {beautifyBalance().toString()} SUI
                 </p>
 
             </div>

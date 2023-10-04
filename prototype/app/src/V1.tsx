@@ -4,7 +4,7 @@ import { Game } from './components/game/Game'
 import { Register } from './components/Register'
 import { ActionBar } from './components/ActionBar';
 
-function App() {
+function AppV1() {
 
   const [email, setEmail] = useState<string>(localStorage.getItem('email') || '');
   const [connected, setConnected] = useState<boolean>(!!localStorage.getItem('email'));
@@ -40,4 +40,4 @@ function App() {
   )
 }
 
-export default App
+export default AppV1

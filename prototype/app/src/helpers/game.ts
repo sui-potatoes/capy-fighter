@@ -4,6 +4,7 @@ import { SuiEvent, SuiObjectData } from "@mysten/sui.js/client";
 import { SharedObjectRef } from "@mysten/sui.js/bcs";
 import { getSuiClient } from "./account";
 import blake2b from 'blake2b';
+import { PlayerType, TYPES } from "./game_v2";
 
 export const GAME_PACKAGE_ADDRESS = '0xe9143d117939e95c9fc623760c23799420ce2173199f2668d891a87430beff48';
 
@@ -17,6 +18,7 @@ export const PlayerReveal = '::PlayerReveal';
 export enum GameTypes {
     PVB = 'PVB',
     PVP = 'PVP',
+    PVP_V2 = 'PVP_V2'
 }
 
 export type GameMove = {
@@ -50,7 +52,9 @@ export type PlayerStats = {
     special_attack: number;
     special_defense: number;
     speed: number;
+    type: PlayerType;
     types: number[];
+    moves: number[];
     account?: string;
     next_attack?: number;
     next_round?: number;
@@ -62,11 +66,8 @@ export type JoinGameProps = {
 }
 
 export const joinAsSecondPlayer = async ({
-    arena,
-    email = localStorage.getItem('email')
+    arena
 }: JoinGameProps) => {
-    if (!email) throw new Error("Account not connected");
-
     let txb = new TransactionBlock();
 
     txb.moveCall({
@@ -74,7 +75,7 @@ export const joinAsSecondPlayer = async ({
       arguments: [txb.sharedObjectRef(arena)],
     });
   
-    return signAndExecute(email, txb)
+    return signAndExecute(txb)
 }
 
 export const parseGameStatsFromArena = async (arenaId: string, isPvP: boolean = false) => {
@@ -89,29 +90,35 @@ export const parseGameStatsFromArena = async (arenaId: string, isPvP: boolean = 
 
     const fields = (data?.content as {fields: any})?.fields;
 
+    if(fields.p1) fields.player_one = fields.p1;
+    if(fields.p2) fields.player_two = fields.p2;
+
     const playerOne =  isPvP ? fields.player_one?.fields?.stats?.fields : fields.player_stats?.fields;
     const playerTwo = isPvP ? fields.player_two?.fields?.stats?.fields : fields.bot_stats?.fields;
 
-    console.log(fields);
     return {
         playerOne: playerOne  && {...playerOne, ...(isPvP ? {
-            initial_hp: fields.player_one?.fields?.starting_hp,
-            account: fields.player_one?.fields?.account,
+            moves: fields.player_one?.fields?.player?.fields.moves,
+            type: TYPES.find(x => x.value === playerOne.types[0]), 
+            initial_hp: fields.player_one?.fields?.starting_hp || fields.player_one?.fields?.player?.fields?.stats?.fields?.hp,
+            account: fields.player_one?.fields?.account || fields.player_one?.fields?.kiosk_id,
             next_attack: fields.player_one?.fields?.next_attack,
             next_round: fields.player_one?.fields?.next_round,
         } : {
             initial_hp: playerOne.hp
         })},
         playerTwo: playerTwo && {...playerTwo, ...(isPvP ? {
-            initial_hp: fields.player_two?.fields?.starting_hp,
-            account: fields.player_two?.fields?.account,
+            moves: fields.player_two?.fields?.player?.fields.moves,
+            type: TYPES.find(x => x.value === playerTwo.types[0]), 
+            initial_hp: fields.player_two?.fields?.starting_hp || fields.player_two?.fields?.player?.fields?.stats?.fields?.hp,
+            account: fields.player_two?.fields?.account || fields.player_two?.fields?.kiosk_id,
             next_attack: fields.player_two?.fields?.next_attack,
             next_round: fields.player_two?.fields?.next_round,
         } : {
             initial_hp: playerTwo.hp
         })},
         round: fields.round,
-        isOver: fields.is_over,
+        isOver: !!fields.winner,
         gameId: arenaId,
         //@ts-ignore-next-line
         initialSharedVersion: data?.owner?.Shared.initial_shared_version
@@ -131,22 +138,19 @@ export const parseGameStatsFromEvent = (events: SuiEvent[]) => {
 }
 
 export type CreateArenaProps = {
-    email?: string | null,
     isPvP: boolean
 }
 
 export async function createArena({
-    email = localStorage.getItem('email'),
     isPvP
 }: CreateArenaProps) {
-    if (!email) throw new Error("Account not connected");
     const txb = new TransactionBlock();
 
     txb.moveCall({
         target: `${GAME_PACKAGE_ADDRESS}::${isPvP ? 'arena_pvp' : 'arena'}::new`
     });
 
-    const { events, objectChanges } = await signAndExecute(email, txb);
+    const { events, objectChanges } = await signAndExecute(txb);
 
     const arena = objectChanges?.find(x => 'objectType' in x 
             && 
@@ -167,17 +171,14 @@ export async function createArena({
 
 
 export type MakeArenaMoveProps = {
-    email?: string | null,
     arena: SharedObjectRef,
     move: GameMove
 }
 
 export async function makeArenaMove({
-    email = localStorage.getItem('email'),
     arena,
     move
 }: MakeArenaMoveProps) {
-    if (!email) throw new Error("Account not connected");
     const txb = new TransactionBlock();
 
     txb.moveCall({
@@ -188,7 +189,7 @@ export async function makeArenaMove({
         ]
     });
 
-    const { events } = await signAndExecute(email, txb);
+    const { events } = await signAndExecute(txb);
 
     const event = events![0].parsedJson as {
         bot_hp: bigint,
@@ -202,11 +203,9 @@ export async function makeArenaMove({
 }
 
 export async function commitPvPMove({
-    email = localStorage.getItem('email'),
     arena,
     move
 }: MakeArenaMoveProps) {
-    if (!email) throw new Error("Account not connected");
 
     let data = new Uint8Array([move.value, 1, 2, 3, 4]);
     let hash = Array.from(blake2b(32).update(data).digest());
@@ -221,16 +220,13 @@ export async function commitPvPMove({
         ]
     });
 
-    return signAndExecute(email, txb);
+    return signAndExecute(txb);
 }
 
 export async function revealPvPMove({
-    email = localStorage.getItem('email'),
     arena,
     move
 }: MakeArenaMoveProps) {
-    if (!email) throw new Error("Account not connected");
-
     const txb = new TransactionBlock();
 
     txb.moveCall({
@@ -242,7 +238,7 @@ export async function revealPvPMove({
         ]
     });
 
-    return signAndExecute(email, txb);
+    return signAndExecute(txb);
 }
 
 

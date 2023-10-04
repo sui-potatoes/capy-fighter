@@ -1,4 +1,5 @@
 import { PlayerStats } from "../../../helpers/game";
+import { TYPES } from "../../../helpers/game_v2";
 import HealthBar from "./HealthBar";
 
 export type PlayerStatsProps = {
@@ -18,6 +19,10 @@ function SinglePlayerStats({ player, isCurrent }: { player: PlayerStats | null; 
         type: 'Type',
     }
 
+    const findType = (type: number) => {
+        return TYPES.find(t => t.value === type);
+    }
+
     if (!player) return <p>Waiting for player...</p>
 
     return (
@@ -30,7 +35,10 @@ function SinglePlayerStats({ player, isCurrent }: { player: PlayerStats | null; 
             <div className={`flex flex-wrap gap-5 ${isCurrent ? 'text-left' : 'flex justify-end'}`}>
                 {
                     Object.keys(attributes).map((key: string) => {
-                        return (<span className="flex-shrink-0 text-lg" key={key}>{attributes[key]}: {(key in player) && player[key]} </span>)
+                        return (<span className="flex-shrink-0 text-lg" key={key}>
+                            {/* @ts-ignore-next-line */}
+                            {attributes[key]}: {key === 'type' ? findType(player[key])?.name : player[key]} 
+                            </span>)
                     })
                 }
             </div>
