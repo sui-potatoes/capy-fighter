@@ -24,7 +24,7 @@ function AppV2() {
     <>
       <div className="items-center max-md:grid overflow-hidden justify-center py-1 md:px-12">
 
-        <div className="order-2 lg:order-1">
+        <div className="order-2 lg:order-1 max-md:py-12 max-md:border-t">
           <div className="pb-3 text-2xl tracking-widest font-medium text-center">
             Welcome to Capy Arcade.
           </div>
