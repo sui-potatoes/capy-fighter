@@ -83,6 +83,8 @@ module game::battle {
     /// It magically wraps the HP decreasing.
     ///
     /// Returns: (damage, effectiveness, is_stab)
+    ///
+    /// TODO: add crit chance + move accuracy
     public fun attack(
         attacker: &Stats, defender: &mut Stats, move_: u64, rng: u8
     ): (u64, u64, bool) {

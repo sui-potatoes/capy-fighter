@@ -108,11 +108,11 @@ module game::arena {
             seed,
             game_id,
             round: 0,
-            is_over: false,
             p1: add_player(p1),
             p2: add_player(p2),
             last_action_timestamp_ms: 0,
             last_action_user: arena_id,
+            winner: option::none()
         });
 
         arena_id
