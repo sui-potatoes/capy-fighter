@@ -8,12 +8,12 @@ import blake2b from "blake2b";
 import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui.js/utils";
 
 
-export const GAME_V2_PACKAGE_ID: string = '0x61421e6a00beb9ecb4cde032c275c081f82fa5398a57b180af008c55e52a0e40';
+export const GAME_V2_PACKAGE_ID: string = '0x070ac19dfb80e961056ad4757d3743704d4c6cfac09a52b73a16aa979a7f0e42';
 
 export const MATCH_POOL: SharedObjectRef = {
     objectId:
-        "0x443d65f0c05acee48ef7bcc1181b1415db12dbba87d65c7aa33f5e1620f0df02",
-    initialSharedVersion: 23,
+        "0xca8bb2ad84e48a3e25fb9ea526dfb93e9d0e0c3d8655f99fc046fca5c109ad3f",
+    initialSharedVersion: 281266,
     mutable: true,
 }
 
@@ -142,7 +142,7 @@ export async function getExtension(kioskId: string) {
     });
 
     if (error) {
-        throw new Error("Something went wrong while fetching the extension");
+        return null;
     }
 
     // remind me to shoot myself in the head
@@ -359,5 +359,8 @@ export async function cleanUpGame({
 
     kioskTx.finalize();
 
-    await signAndExecute(txb);
+    txb.setGasBudget(10000000n);
+
+    const res = await signAndExecute(txb);
+    console.log(res);
 }

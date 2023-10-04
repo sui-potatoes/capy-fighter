@@ -12,7 +12,7 @@ export function PlayerCreation({
 
         setCreating(true);
 
-        createPlayer(type).then(res => {
+        createPlayer(type).then(() => {
             created();
         }).catch(e => {
             console.log(e);

@@ -5,7 +5,7 @@ import { cleanUpGame, commit, reveal } from "../../../helpers/game_v2";
 import { ArenaTitle } from "../parts/ArenaTitle";
 import { ArenaResult } from "../parts/ArenaResult";
 import { PlayerStatistics } from "../parts/PlayerStatistics";
-import { MovesV2 } from "./Moves_v2";
+import { MovesV2 } from "./MovesV2";
 import { KioskOwnerCap } from "@mysten/kiosk";
 import { useBackgroundAudio } from "../../../hooks/useBackgroundAudio";
 

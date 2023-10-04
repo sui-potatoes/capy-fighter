@@ -1,9 +1,9 @@
-import { KioskClient, KioskTransaction, Network } from "@mysten/kiosk";
+import { KioskClient, KioskOwnerCap, KioskTransaction, Network } from "@mysten/kiosk";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui.js/client";
 import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519"
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { sha256 } from "js-sha256";
-import { GAME_V2_PACKAGE_ID } from "./game_v2";
+import { GAME_V2_PACKAGE_ID, getExtension } from "./game_v2";
 import { signAndExecute } from "./transactions";
 
 const client = new SuiClient({
@@ -49,6 +49,10 @@ export async function getOwnedKiosk(){
         return getOwnedKiosk();
     }
 
+    const extension = await getExtension(kioskOwnerCaps[0].kioskId);
+    if(!extension){
+        await addExtensionToExistingKiosk(kioskOwnerCaps[0]);
+    }
     return kioskOwnerCaps[0];
 }
 
@@ -66,5 +70,18 @@ async function createKioskAndInstallExtension() {
     kioskTx.shareAndTransferCap(unsafe_getConnectedAddress());
     kioskTx.finalize();
 
+    await signAndExecute(txb);
+}
+
+async function addExtensionToExistingKiosk(cap: KioskOwnerCap) {
+    
+    const txb = new TransactionBlock();
+    const kioskTx = new KioskTransaction({ transactionBlock: txb, kioskClient, cap });
+    txb.moveCall({
+        target: `${GAME_V2_PACKAGE_ID}::the_game::add`,
+        arguments: [kioskTx.getKiosk(), kioskTx.getKioskCap()],
+      });
+
+    kioskTx.finalize();
     await signAndExecute(txb);
 }

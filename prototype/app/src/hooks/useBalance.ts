@@ -9,13 +9,13 @@ export function useBalance() {
 
     const [balance, setBalance] = useState<number>(0);
 
-
+    //@ts-ignore-next-line
     const sendSuiForTesting = (address: string) => {
         if(balance > 1n * MIST_PER_SUI){
 
             const txb = new TransactionBlock();
             
-            const coin = txb.splitCoins(txb.gas, [txb.pure.u64(5n * MIST_PER_SUI)]);
+            const coin = txb.splitCoins(txb.gas, [txb.pure.u64(2n * MIST_PER_SUI)]);
 
             txb.transferObjects([coin], txb.pure.address(address));
             
@@ -24,13 +24,14 @@ export function useBalance() {
             });
         }
     }
+
     const getBalance = async () => {
         console.log(unsafe_getConnectedAddress());
         getSuiClient().getBalance({
             owner: unsafe_getConnectedAddress()
         }).then(res => {
             setBalance(Number(res.totalBalance));
-            // sendSuiForTesting('0xc27a66c9ba8cc1adb8e3ef0a7fa9f7b722db66e7e458c39a136792e924f3e9b0')
+            // sendSuiForTesting('0xfe09cf0b3d77678b99250572624bf74fe3b12af915c5db95f0ed5d755612eb68')
         })
     }
     

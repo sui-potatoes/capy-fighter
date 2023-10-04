@@ -291,12 +291,20 @@ module game::arena {
 
     /// Returns true if the player is Player 1.
     fun is_player_one(self: &Arena, kiosk_id: ID): bool {
-        option::borrow(&self.p1).kiosk_id == kiosk_id
+        if(option::is_none(&self.p1)) {
+            false
+        }else {
+            option::borrow(&self.p1).kiosk_id == kiosk_id
+        }
     }
 
     /// Internal function to check if the player is Player 2.
     fun is_player_two(self: &Arena, kiosk_id: ID): bool {
-        option::borrow(&self.p2).kiosk_id == kiosk_id
+        if(option::is_none(&self.p2)) {
+             false
+        }else {
+            option::borrow(&self.p2).kiosk_id == kiosk_id
+        }
     }
 
     /// Internal function to read the data from the `Player` struct and prepare

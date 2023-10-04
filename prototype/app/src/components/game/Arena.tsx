@@ -7,7 +7,7 @@ import { ArenaResult } from "./parts/ArenaResult";
 import { PlayerStatistics } from "./parts/PlayerStatistics";
 import { unsafe_getConnectedAddress } from "../../helpers/account";
 import { useUserGameData } from "../../hooks/useUserGameData";
-import { MovesV2 } from "./parts_v2/Moves_v2";
+import { MovesV2 } from "./parts_v2/MovesV2";
 import { GameMoveV2 } from "../../helpers/game_v2";
 
 export type ArenaProps = {
