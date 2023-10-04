@@ -13,8 +13,7 @@ export type GameProps = {
 // The game options.
 export function Game() {
 
-
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   // Handle URL navigation here.
   useEffect(() => {

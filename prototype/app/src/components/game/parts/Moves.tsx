@@ -10,9 +10,7 @@ export function Moves({
     makeMove
 }: MoveProps) {
 
-
     const makeMoveHandler = (move: GameMove) => {
-
         const audio = new Audio(move.soundEffect);
         audio.volume = 0.1;
         audio.play();
