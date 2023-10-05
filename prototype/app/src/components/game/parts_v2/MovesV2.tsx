@@ -72,7 +72,7 @@ export function MovesV2({
                             }>
                             <img src={move.move.icon} className="mx-auto w-16 mb-3" />
                             <p>
-                                {move.move.name} - {eventCodes[index].replace('Key', '')}
+                                {move.move.name} ({move.move.category}) - {eventCodes[index].replace('Key', '')}
                             </p>
                         </button>
                     )

@@ -105,25 +105,25 @@ export const MOVES_V2: GameMoveV2[] = [
 export const TYPES: PlayerType[] = [
     {
         name: "Water",
-        description: "Water is super effective against Fire",
+        description: "Water is super effective against Fire; and not effective against Earth",
         icon: 'assets/water.png',
         value: 0
     },
     {
         name: "Fire",
-        description: "Fire is super effective against Air",
+        description: "Fire is super effective against Air; and not effective against Water",
         icon: 'assets/fire.png',
         value: 1
     },
     {
         name: "Air",
-        description: "Air is super effective against Earth",
+        description: "Air is super effective against Earth; and not effective against Fire",
         icon: 'assets/air.png',
         value: 2
     },
     {
         name: "Earth",
-        description: "Earth is super effective against Water",
+        description: "Earth is super effective against Water; and not effective against Air",
         icon: 'assets/earth.png',
         value: 3
     },

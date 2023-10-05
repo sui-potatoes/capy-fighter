@@ -20,7 +20,7 @@ function SinglePlayerStats({ player, isCurrent }: { player: PlayerStats | null; 
     }
 
     const findType = (type: number) => {
-        return TYPES.find(t => t.value === type);
+        return TYPES.find(t => t.value === +type);
     }
 
     if (!player) return <p>Waiting for player...</p>
@@ -33,13 +33,13 @@ function SinglePlayerStats({ player, isCurrent }: { player: PlayerStats | null; 
                 <HealthBar initialHp={player?.initial_hp ?? 0n} currentHp={player?.hp ?? 0n} />
             </div>
 
-            {false &&
+            {true &&
                 <div className={`flex flex-wrap gap-5 ${isCurrent ? 'text-left' : 'flex justify-end'}`}>
                     {
                         Object.keys(attributes).map((key: string) => {
-                            return (<span className="flex-shrink-0 text-lg" key={key}>
+                            return (<span className="flex-shrink-0 text-md" key={key}>
                                 {/* @ts-ignore-next-line */}
-                                {attributes[key]}: {key === 'type' ? findType(player[key])?.name : player[key]}
+                                {attributes[key]}: {key === 'type' ? player[key]?.name : player[key]}
                             </span>)
                         })
                     }
