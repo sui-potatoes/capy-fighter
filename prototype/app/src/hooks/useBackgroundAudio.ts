@@ -1,47 +1,43 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { useEffect, useState } from "react";
 
+export function useBackgroundAudio(audioFile?: string) {
+  const [bgAudio] = useState<HTMLAudioElement>(
+    new Audio(audioFile || "/assets/bg_dark.mp3")
+  );
 
+  const pause = () => {
+    bgAudio.pause();
+  };
 
-export function useBackgroundAudio(audioFile?: string){
+  const resume = () => {
+    bgAudio.play();
+  };
 
-    const [bgAudio] = useState<HTMLAudioElement>(new Audio(audioFile || "/assets/bg_dark.mp3"));
+  const restart = () => {
+    bgAudio.currentTime = 0;
+    bgAudio.play();
+  };
 
+  const handleBgAudioRepeat = (bgAudio: HTMLAudioElement) => {
+    bgAudio.currentTime = 0;
+    bgAudio.play();
+  };
 
-    const pause = () => {
-        bgAudio.pause();
-    }
+  useEffect(() => {
+    bgAudio.play();
+    bgAudio.addEventListener("ended", () => handleBgAudioRepeat(bgAudio));
 
-    const resume = () => {
-        bgAudio.play();
-    }
+    return () => {
+      bgAudio.removeEventListener("ended", () => handleBgAudioRepeat(bgAudio));
+    };
+  }, []);
 
-    const restart = () => {
-        bgAudio.currentTime = 0;
-        bgAudio.play();
-    }
-    
-    const handleBgAudioRepeat = (bgAudio: HTMLAudioElement) => {
-        bgAudio.currentTime = 0;
-        bgAudio.play();
-    }
-    
-
-    useEffect(() => {
-        bgAudio.play();
-        bgAudio.addEventListener('ended', () => handleBgAudioRepeat(bgAudio));
-
-
-        return () => {
-            bgAudio.removeEventListener('ended', () => handleBgAudioRepeat(bgAudio));
-        }
-    }, []);
-
-
-    return {
-        pause,
-        resume,
-        restart
-    }
-
-
+  return {
+    pause,
+    resume,
+    restart,
+  };
 }

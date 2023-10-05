@@ -1,26 +1,27 @@
+// Copyright (c) Mysten Labs, Inc.
+// SPDX-License-Identifier: Apache-2.0
+
 import { useEffect, useState } from "react";
-import { GameTypes, createArena, joinAsSecondPlayer, parseGameStatsFromArena } from "../../helpers/game";
+import {
+  GameTypes,
+  createArena,
+  joinAsSecondPlayer,
+  parseGameStatsFromArena,
+} from "../../helpers/game";
 import { Arena } from "./Arena";
 import { SharedObjectRef } from "@mysten/sui.js/bcs";
 import { isValidSuiObjectId, normalizeSuiObjectId } from "@mysten/sui.js/utils";
 import { unsafe_getConnectedAddress } from "../../helpers/account";
 import { useSearchParams } from "react-router-dom";
-import { useUserPlayer } from "../../hooks/useUserPlayer";
-import { PlayerCreation } from "./parts_v2/PlayerCreation";
-import { PlayerPreview } from "./parts_v2/PlayerPreview";
-import { useUserGameData } from "../../hooks/useUserGameData";
-import { ArenaV2 } from "./parts_v2/ArenaV2";
 
 // The game options.
 export function Game() {
-
   const [searchParams] = useSearchParams();
 
   // Handle URL navigation here.
   useEffect(() => {
-
-    if (searchParams.get('join')) {
-      setJoinGameId(normalizeSuiObjectId(searchParams.get('join') || ''));
+    if (searchParams.get("join")) {
+      setJoinGameId(normalizeSuiObjectId(searchParams.get("join") || ""));
       setJoinGame(true);
     }
   }, []);
@@ -30,8 +31,7 @@ export function Game() {
   const [showPlayerCreation, setShowPlayerCreation] = useState<boolean>(false);
 
   const [joinGame, setJoinGame] = useState<boolean>(false);
-  const [joinGameId, setJoinGameId] = useState<string>('');
-
+  const [joinGameId, setJoinGameId] = useState<string>("");
 
   const [gameType, setGameType] = useState<GameTypes>(GameTypes.PVB);
 
@@ -40,27 +40,30 @@ export function Game() {
   const getArenaData = async (gameId: string) => {
     const game = await parseGameStatsFromArena(gameId || joinGameId, true);
 
-    if (game.playerOne && game.playerTwo
-      && (game.playerOne.account !== unsafe_getConnectedAddress())
-      && (game.playerTwo.account !== unsafe_getConnectedAddress())
+    if (
+      game.playerOne &&
+      game.playerTwo &&
+      game.playerOne.account !== unsafe_getConnectedAddress() &&
+      game.playerTwo.account !== unsafe_getConnectedAddress()
     ) {
       throw new Error("You are not part of this game.");
     }
     return {
       game,
       arena: {
-        mutable: true, objectId: gameId, initialSharedVersion: game.initialSharedVersion
-      }
+        mutable: true,
+        objectId: gameId,
+        initialSharedVersion: game.initialSharedVersion,
+      },
     };
-  }
+  };
 
   const searchGameAndJoin = async (gameId?: string) => {
-
     const { game, arena } = await getArenaData(gameId || joinGameId);
 
     if (!game.playerTwo) {
       await joinAsSecondPlayer({
-        arena
+        arena,
       });
     }
     if (game && !game.isOver) {
@@ -69,7 +72,7 @@ export function Game() {
       setGameType(GameTypes.PVP);
       setGameStarted(true);
     }
-  }
+  };
 
   const startPvP = async () => {
     const res = await createArena({
@@ -79,7 +82,7 @@ export function Game() {
     setArena(res.arena);
     setGameStarted(true);
     setJoinGame(false);
-  }
+  };
 
   const startPvB = async () => {
     const res = await createArena({
@@ -89,64 +92,77 @@ export function Game() {
     setArena(res.arena);
     setGameStarted(true);
     setJoinGame(false);
-  }
+  };
 
   const end = () => {
     setGameStarted(false);
     setArena(null);
-  }
+  };
 
   return (
     <div className="py-12 text-center">
       <div>
-        {
-          !gameStarted &&
+        {!gameStarted && (
           <div>
             <p>
               Welcome back. Select one game mode from the list to start playing.
             </p>
             <div className="grid md:flex gap-5 justify-center py-6">
-              <button onClick={() => {
-                startPvB();
-              }}>Start a PVB match</button>
+              <button
+                onClick={() => {
+                  startPvB();
+                }}
+              >
+                Start a PVB match
+              </button>
 
-              <button onClick={() => {
-                startPvP();
-              }}>Start a PVP match</button>
-              <button onClick={() => {
-                setShowPlayerCreation(false);
-                setJoinGame(true);
-              }
-              }>Join a game</button>
+              <button
+                onClick={() => {
+                  startPvP();
+                }}
+              >
+                Start a PVP match
+              </button>
+              <button
+                onClick={() => {
+                  setShowPlayerCreation(false);
+                  setJoinGame(true);
+                }}
+              >
+                Join a game
+              </button>
             </div>
           </div>
-        }
-        {
-          gameStarted && arena && <Arena arena={arena} gameType={gameType} end={end} />
-        }
+        )}
+        {gameStarted && arena && (
+          <Arena arena={arena} gameType={gameType} end={end} />
+        )}
 
         {/* Join game by ID. */}
-        {
-          !gameStarted && !showPlayerCreation && joinGame && <div>
+        {!gameStarted && !showPlayerCreation && joinGame && (
+          <div>
             <p>Enter the arena ID</p>
-            <input type="text"
+            <input
+              type="text"
               value={joinGameId}
               className="w-[350px] block mx-auto border-black border rounded-lg px-3 mt-3 py-2"
               placeholder="Type the arena ID"
               onChange={(e) => {
-                setJoinGameId(e.target.value)
+                setJoinGameId(e.target.value);
               }}
             />
-            <div className='pt-12'>
-              <button className="disabled:opacity-30"
+            <div className="pt-12">
+              <button
+                className="disabled:opacity-30"
                 disabled={!joinGameId || !isValidSuiObjectId(joinGameId)}
                 onClick={() => searchGameAndJoin()}
-              >Join Game</button>
+              >
+                Join Game
+              </button>
             </div>
           </div>
-        }
-
+        )}
       </div>
-    </div >
-  )
+    </div>
+  );
 }
