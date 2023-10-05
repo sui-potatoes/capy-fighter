@@ -103,7 +103,7 @@ async function newAccount() {
     let tx = new TransactionBlock();
     let cap = tx.objectRef(kioskOwnerCaps[0]);
     let kioskArg = tx.object(kioskIds[0]);
-
+    
     tx.moveCall({
       target: `${pkg}::the_game::add`,
       arguments: [kioskArg, cap],
