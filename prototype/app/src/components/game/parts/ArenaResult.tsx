@@ -11,7 +11,7 @@ export function ArenaResult({ result, end }: ArenaResultProps) {
   return (
     <div>
       <h2 className="text-6xl mb-6">{result}</h2>
-      <button onClick={end}>Play Again</button>
+      <button className="text-black" onClick={end}>Play Again</button>
     </div>
   );
 }
