@@ -53,8 +53,8 @@ export function SinglePlayerStats({
           {Object.keys(attributes).map((key: string) => {
             return (
               <span className="flex-shrink-0 text-md" key={key}>
-                {/* @ts-ignore-next-line */}
                 {attributes[key]}:{" "}
+                {/* @ts-ignore-next-line */}
                 {key === "type" ? player[key]?.name : player[key]}
               </span>
             );

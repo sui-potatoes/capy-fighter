@@ -18,8 +18,6 @@ import { ArenaResult } from "./parts/ArenaResult";
 import { PlayerStatistics } from "./parts/PlayerStatistics";
 import { unsafe_getConnectedAddress } from "../../helpers/account";
 import { useUserGameData } from "../../hooks/useUserGameData";
-import { MovesV2 } from "./parts_v2/MovesV2";
-import { GameMoveV2 } from "../../helpers/game_v2";
 
 export type ArenaProps = {
   arena: SharedObjectRef;
@@ -175,13 +173,6 @@ export function Arena({ arena, gameType = GameTypes.PVB, end }: ArenaProps) {
     setIsExpectingMove(false);
   };
 
-  const commitMoveV2 = async (move: GameMoveV2) => {
-    localStorage.setItem("lastMove", JSON.stringify(move));
-    // await commitPvPMove({ arena, move });
-    getGameStatus(arena.objectId);
-    setIsExpectingMove(false);
-  };
-
   const handleBgAudioRepeat = (bgAudio: HTMLAudioElement) => {
     bgAudio.currentTime = 0;
     bgAudio.play();
@@ -214,11 +205,6 @@ export function Arena({ arena, gameType = GameTypes.PVB, end }: ArenaProps) {
               makeMove={gameType === GameTypes.PVB ? makePvBMove : commitMove}
             />
           )}
-          {isExpectingMove &&
-            currentPlayer &&
-            gameType === GameTypes.PVP_V2 && (
-              <MovesV2 playerStats={currentPlayer} makeMove={commitMoveV2} />
-            )}
 
           {!isExpectingMove && (
             <div className="text-center py-12">
