@@ -17,7 +17,6 @@ import { ArenaV2 } from "./parts_v2/ArenaV2";
 import { useBalance } from "../../hooks/useBalance";
 import { WaitingForGame } from "./parts_v2/WaitingForGame";
 import { StartGameScreen } from "./parts_v2/StartGameScreen";
-import { SinglePlayerStats } from "./parts/PlayerStatistics";
 
 // The game options.
 export function GameV2() {
