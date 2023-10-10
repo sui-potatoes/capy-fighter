@@ -1,10 +1,9 @@
 [package]
 name = "pokemon"
 version = "0.0.1"
-published-at="0x071896b8cb5bf34c5e50f14d6c2bf8e86fa4df63fdef48e5e006250f8b81b9d5"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "devnet" }
 
 [addresses]
-pokemon = "0x071896b8cb5bf34c5e50f14d6c2bf8e86fa4df63fdef48e5e006250f8b81b9d5"
+pokemon = "0x0"

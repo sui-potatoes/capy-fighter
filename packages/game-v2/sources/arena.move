@@ -147,10 +147,6 @@ module game::arena {
 
         self.last_action_timestamp_ms = clock::timestamp_ms(clock);
         self.last_action_user = kiosk_id;
-
-        sui::event::emit(PlayerCommit {
-            arena: object::uid_to_address(&self.id)
-        });
     }
 
     /// Each of the players needs to reveal their move; so that the round can
@@ -210,11 +206,6 @@ module game::arena {
         let next_round_cond = option::is_none(&defender.next_attack)
             && (defender.next_round == (self.round + 1));
 
-        sui::event::emit(PlayerReveal {
-            arena: object::uid_to_address(&self.id),
-            _move: player_move
-        });
-
         self.last_action_timestamp_ms = clock::timestamp_ms(clock);
         self.last_action_user = kiosk_id;
 
@@ -222,12 +213,6 @@ module game::arena {
         // to reveal bumps the round.
         if (next_round_cond) {
             self.round = self.round + 1;
-
-            sui::event::emit(RoundResult {
-                arena: object::uid_to_address(&self.id),
-                attacker_hp: stats::hp(&attacker.stats),
-                defender_hp: stats::hp(&defender.stats),
-            });
         };
     }
 
@@ -330,23 +315,5 @@ module game::arena {
         let value = *vector::borrow(&seed, (round as u64));
 
         ((value % (255 - 217)) + 217)
-    }
-
-    // === Events ===
-
-    /// Emitted when a player commits the hit move.
-    struct PlayerCommit has copy, drop { arena: address }
-
-    /// Emitted when a player reveals the result and hits the other player.
-    struct PlayerReveal has copy, drop {
-        arena: address,
-        _move: u8
-    }
-
-    /// Emitted when both players have hit and the round is over.
-    struct RoundResult  has copy, drop {
-        arena: address,
-        attacker_hp: u64,
-        defender_hp: u64
     }
 }

@@ -11,12 +11,12 @@ import blake2b from "blake2b";
 import { SUI_CLOCK_OBJECT_ID } from "@mysten/sui.js/utils";
 
 export const GAME_V2_PACKAGE_ID: string =
-  "0x070ac19dfb80e961056ad4757d3743704d4c6cfac09a52b73a16aa979a7f0e42";
+  "0xbc50935f395840be759de782cb0bd026613e7fb23ab23223f82940b7e37062fb";
 
 export const MATCH_POOL: SharedObjectRef = {
   objectId:
-    "0xca8bb2ad84e48a3e25fb9ea526dfb93e9d0e0c3d8655f99fc046fca5c109ad3f",
-  initialSharedVersion: 281266,
+    "0xc1bc67692dd2a0eac01e6bb7cd036146d5589e76cef6a415e71423c337851455",
+  initialSharedVersion: 8,
   mutable: true,
 };
 
