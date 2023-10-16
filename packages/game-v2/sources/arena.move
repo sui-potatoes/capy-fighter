@@ -14,6 +14,12 @@
 /// The Arena is created once for a match and can be accessed only by its
 /// participants; the authorization is performed based on the KioskOwnerCap, as
 /// `Player` struct stores the Kiosk ID.
+///
+/// Arena V2 Idea:
+/// - nuke all identification and discovery
+/// - serve as a wrapper for Pokemon algo
+/// - be moduler
+///
 module game::arena {
     use std::vector;
     use std::option::{Self, Option};
@@ -36,10 +42,10 @@ module game::arena {
     /// The timeout for the game; if a player doesn't act within 3 minutes, the
     /// game is considered abandoned. The Player is banned from the game for
     /// 10 minutes.
-    const TIMEOUT: u64 = 180000; // 3 minutes
+    // const TIMEOUT: u64 = 180000; // 3 minutes
 
     /// Trying to perform an action while still searching for P2;
-    const EArenaNotReady: u64 = 0;
+    // const EArenaNotReady: u64 = 0;
     /// Trying to perform an action while the arena is over;
     const EArenaOver: u64 = 1;
     /// Can't do next round if P1 hasn't submitted their move;

@@ -4,8 +4,8 @@
 // NOTE: This code is ported from the old prototype
 // NOTE: Keeping for reference but it's not used in the current impl
 
-/// This module aims to provide the functionality to generate Pokemon stats from
-/// SuiFrens.
+// / This module aims to provide the functionality to generate Pokemon stats from
+// / SuiFrens.
 // module game::capy_stats {
 //     use std::vector;
 

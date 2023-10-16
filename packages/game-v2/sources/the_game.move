@@ -81,13 +81,56 @@ module game::the_game {
         bag::add(storage, PlayerKey {}, option::some(player))
     }
 
+    // === Matchmaking ===
+
+    #[allow(unused_variable)]
+    entry fun play_v2(
+        kiosk: &mut Kiosk,
+        cap: &KioskOwnerCap,
+        _match: &mut MatchPool, // do we even need it? hmm
+    ) {
+        // let storage = ext::storage_mut(Game {}, kiosk);
+        // let player = option::extract(bag::borrow_mut(storage, PlayerKey {}));
+        // let (id, level) = (object::id(&self), player::level(&player));
+
+        // // tolerance is not implemented yet; only same level matching
+        // pool::submit_order(&mut pool, id, level, 0);
+
+        // // try luck with the pool and see if there is a match
+        // let opponent_id = pool::find_match(&mut pool, id, level, 0);
+        // if (option::is_none(opponent_id)) {
+        //     return
+        // };
+
+        // if found - prepare the stage for the second player
+        // we're implementing it in a way that the Arena can always be
+        // replaced by a different module should we decide to upgrade
+        // then we need to remove dependency from the Arena module on the
+        // player struct; ha!
+
+
+        // dependency graph
+        // : arena ---> pokemon
+        // : the_game ---> (pokemon, arena)
+        // ...makes sense?
+
+        // bag::add(
+        //     storage,
+        //     MatchKey {},
+        //     // arena::new()
+        // )
+
+
+
+    }
+
     /// Play the game by finding or creating a match.
     /// The Match ID will be stored in the Extension storage.
     entry fun play(
         kiosk: &mut Kiosk,
         cap: &KioskOwnerCap,
-        matches: &mut MatchPool,
-        ctx: &mut TxContext
+        _matches: &mut MatchPool,
+        _ctx: &mut TxContext
     ) {
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
@@ -99,8 +142,8 @@ module game::the_game {
 
         assert!(!player::is_banned(&player), EPlayerIsBanned);
 
-        let match_id = matchmaker::find_or_create_match(matches, player, ctx);
-        bag::add(storage, MatchKey {}, match_id)
+        // let match_id = matchmaker::find_or_create_match(matches, player, ctx);
+        // bag::add(storage, MatchKey {}, match_id)
     }
 
     /// Clear the arena by closing the match. Can only be performed when Arena

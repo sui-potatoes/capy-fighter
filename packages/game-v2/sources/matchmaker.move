@@ -49,6 +49,7 @@ module game::matchmaker {
     /// a dynamic field which is destroyed when an arena is created;
     public fun find_or_create_match(
         self: &mut MatchPool,
+        // kiosk: &mut Kiosk,
         player: Player,
         ctx: &mut TxContext
     ): ID {
@@ -103,3 +104,30 @@ module game::matchmaker {
         object::id_from_address(fresh_object_address(ctx))
     }
 }
+
+// / The Facts:
+// / - we always know the player level but we don't know their tolerance setting
+// / - the Player struct can be used to perform auth
+// / - when a Player is searching for a match, we need to lock the Player struct
+// / so that a second order can't be submitted
+// / - when an order is matched, the game needs to begin, where do we store it?
+// / that's a tricky one. How do we know where the match is happening? Should it
+// / be Kiosk? Well, I'd like it this way tho let's see if it's not too much.
+// module game::matchmaker_v2 {
+//     use sui::object::{Self, UID};
+//     use game::pool::{Self, Pool};
+
+//     /// A singleton object that stores order Pool(s).
+//     struct Matchmaker has key { id: UID }
+
+    // / Search for a match.
+    // public fun search(
+    //     self: &mut Matchmaker,
+    //     player: Player,
+    //     ctx: &mut TxContext
+    // ) {
+    //     // let pool = Pool::new(ctx);
+    //     // pool.add(player);
+    //     // object::add(&mut self.id, pool);
+    // }
+// }
