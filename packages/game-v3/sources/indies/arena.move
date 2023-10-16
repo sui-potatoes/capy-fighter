@@ -8,7 +8,7 @@
 ///
 /// Shall we make a note that Context-less modules are the definition for what
 /// a pure logic / generic impl is?
-module game::arena_v2 {
+module game::arena {
     use std::option::{Self, Option};
     use std::vector;
     use sui::hash::blake2b256;
@@ -44,8 +44,12 @@ module game::arena_v2 {
         /// The stats can be modified using "Modifiers" as well as the HP is
         /// reduced when the player is hit.
         original_stats: Stats,
-        ///
+        /// Stores the commitment for the next move. When commitment is revealed
+        /// the revealed data is stored in the `next_move`.
         commitment: Option<vector<u8>>,
+        /// Next move to be performed when the round is over (the last player to
+        /// reveal their move triggers the `calculate_round`). The move is unset
+        /// when the round result is calculated.
         next_move: Option<u8>,
     }
 
@@ -56,23 +60,19 @@ module game::arena_v2 {
     /// - no authorization, no nothing = must be wrapped due to `store`
     /// - pure commit and pure reveal = auth is in the wrapper
     struct Arena has store, drop {
+        /// Active Player stats for the first player to join.
         p1: Option<ActivePlayer>,
+        /// Active Player stats for the second player to join.
         p2: Option<ActivePlayer>,
-
-        /// We need this variable to store the p2 data before the second player
-        /// actually joined the game. Or do we? :laughing:
-        // p2_id: address,
-
         /// Let's hope there will never be a game longer than 255 rounds.
         /// Fingers crossed and it's a known flow if you think you're smart and
         /// want to highlight it.
         round: u8,
-
         /// 0 for None, 1 for P1, 2 for P2
         winner: u8,
     }
 
-    /// Create a new Arena for the given stats.
+    /// Create a new empty Arena; no bias towards any of the players.
     public fun new(): Arena {
         Arena {
             p1: option::none(),
@@ -134,7 +134,60 @@ module game::arena_v2 {
         };
     }
 
-    // no checks and asserts necessary as we've already got to this point
+    // === Getters ===
+
+    /// Getter for the winner.
+    public fun winner(self: &Arena): u8 { self.winner }
+
+    /// Getter for the current round.
+    public fun round(self: &Arena): u8 { self.round }
+
+    /// Internal: util to check whether the game has started already
+    public fun game_started(self: &Arena): bool {
+        option::is_some(&self.p1) && option::is_some(&self.p2)
+    }
+
+    /// Internal: util to check whether the game is over
+    public fun is_game_over(self: &Arena): bool { self.winner != 0 }
+
+    /// Getter for current player stats (changes every round).
+    public fun stats(self: &Arena): (&Stats, &Stats) {
+        (
+            &option::borrow(&self.p1).stats,
+            &option::borrow(&self.p2).stats,
+        )
+    }
+
+    /// Getter for original players' stats (never changes).
+    public fun original_stats(self: &Arena): (&Stats, &Stats) {
+        (
+            &option::borrow(&self.p1).original_stats,
+            &option::borrow(&self.p2).original_stats,
+        )
+    }
+
+    /// Return Pokemons based on their speed.
+    fun by_speed(self: &mut Arena): (&mut ActivePlayer, &mut ActivePlayer) {
+        let p1_speed = stats::speed(&option::borrow(&self.p1).stats);
+        let p2_speed = stats::speed(&option::borrow(&self.p2).stats);
+
+        if (p1_speed > p2_speed) {
+            (
+                option::borrow_mut(&mut self.p1),
+                option::borrow_mut(&mut self.p2)
+            )
+        } else {
+            (
+                option::borrow_mut(&mut self.p2),
+                option::borrow_mut(&mut self.p1)
+            )
+        }
+    }
+
+    // === Internal ===
+
+    /// The most important function - calculates the round result and updates
+    /// the stats + round. Defines the winner if there is.
     fun calculate_round(self: &mut Arena, rng_seed: vector<u8>) {
         self.round = self.round + 1;
 
@@ -159,9 +212,6 @@ module game::arena_v2 {
         };
     }
 
-
-    // === Internal ===
-
     /// Internal: util to create a new player
     fun new_player(stats: Stats, id: address): ActivePlayer {
         ActivePlayer {
@@ -173,31 +223,6 @@ module game::arena_v2 {
         }
     }
 
-    /// Internal: util to check whether the game has started already
-    fun game_started(self: &Arena): bool {
-        option::is_some(&self.p1) && option::is_some(&self.p2)
-    }
-
-    /// Internal: util to check whether the game is over
-    fun is_game_over(self: &Arena): bool { self.winner != 0 }
-
-    /// Return Pokemons based on their speed.
-    fun by_speed(self: &mut Arena): (&mut ActivePlayer, &mut ActivePlayer) {
-        let p1_speed = stats::speed(&option::borrow(&self.p1).stats);
-        let p2_speed = stats::speed(&option::borrow(&self.p2).stats);
-
-        if (p1_speed > p2_speed) {
-            (
-                option::borrow_mut(&mut self.p1),
-                option::borrow_mut(&mut self.p2)
-            )
-        } else {
-            (
-                option::borrow_mut(&mut self.p2),
-                option::borrow_mut(&mut self.p1)
-            )
-        }
-    }
 
     /// Return the attacker and defender in order based on the ID passed.
     fun atk_def(self: &mut Arena, id: address): (&mut ActivePlayer, &mut ActivePlayer) {
@@ -220,5 +245,80 @@ module game::arena_v2 {
         } else {
             abort EUnknownSender // we don't know who you are bruh
         }
+    }
+}
+
+#[test_only, allow(unused_variable, unused_function)]
+/// It's testing time!
+module game::arena_v2_tests {
+    use std::vector;
+    use pokemon::stats::{Self, Stats};
+    use game::arena_v2 as arena;
+
+    #[test]
+    fun test_p1_joined() {
+        let arena = arena::new();
+        let (p1, id) = p1();
+
+        arena::join(&mut arena, p1, id);
+    }
+
+    #[test, expected_failure(abort_code = arena::ESamePlayer)]
+    fun test_p1_join_twice_fail() {
+        let arena = arena::new();
+        let (p1, id) = p1();
+
+        arena::join(&mut arena, p1, id);
+        arena::join(&mut arena, p1, id);
+    }
+
+    #[test]
+    fun test_p1_p2_battle() {
+        let arena = arena::new();
+        let (p1_stats, p1) = p1();
+        arena::join(&mut arena, p1_stats, p1);
+
+        let (p2_stats, p2) = p2();
+        arena::join(&mut arena, p2_stats, p2);
+
+        // p1 hits with Hydro Pump
+        arena::commit(&mut arena, p1, commit(0, b"Hydro Pump"));
+        arena::commit(&mut arena, p2, commit(2, b"Inferno"));
+
+        // p1 reveals first
+        arena::reveal(&mut arena, p1, 0, b"Hydro Pump", vector[]);
+        assert!(arena::round(&arena) == 0, 0);
+
+        // make sure that that the round got bumped on second reveal
+        arena::reveal(&mut arena, p2, 2, b"Inferno", vector[]);
+        assert!(arena::round(&arena) == 1, 0);
+
+        // checking stats; we expect that the HP of both players is reduced
+        let (p1_stats_active, p2_stats_active) = arena::stats(&arena);
+
+        assert!(stats::hp(&p1_stats) > stats::hp(p1_stats_active), 0);
+        assert!(stats::hp(&p2_stats) > stats::hp(p2_stats_active), 0);
+
+        std::debug::print(&arena::winner(&arena));
+
+        // turns out p2 actually won this round lmao
+        // let's act like we expected it to happen and add an assertion
+        assert!(arena::winner(&arena) == 2, 0);
+    }
+
+    // === Utils ===
+
+    fun commit(move_: u8, salt: vector<u8>): vector<u8> {
+        let commitment = vector[ move_ ];
+        vector::append(&mut commitment, salt);
+        sui::hash::blake2b256(&commitment)
+    }
+
+    fun p1(): (Stats, address) {
+        (stats::new(10, 35, 35, 50, 50, 30, 10, vector[ 0 ]), @0x1)
+    }
+
+    fun p2(): (Stats, address) {
+        (stats::new(10, 35, 35, 50, 50, 30, 10, vector[ 0 ]), @0x2)
     }
 }
