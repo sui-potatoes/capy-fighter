@@ -71,12 +71,24 @@ module game::arena {
         p2: Option<ActivePlayer>,
         /// Round counter (starts from 0).
         round: u8,
-        /// Enum-like field which stores the winner when over.
-        /// Values: `0` for None, `1` for P1, `2` for P2
-        winner: u8,
+        /// The winner of the game. If the game is not over yet, the value is
+        /// `None`, otherwise it's the id of the winner.
+        winner: Option<address>,
         /// History of the performed moves. The fastest player hits first,
         /// then the second player hits and so on.
-        history: vector<u8>,
+        history: vector<HitRecord>,
+    }
+
+    /// A Struct representing a single attack.
+    struct HitRecord has copy, store, drop {
+        /// The move performed by the attacker.
+        move_: u8,
+        /// The damage dealt to the defender.
+        damage: u64,
+        /// The effectiveness of the move.
+        effectiveness: u64,
+        /// The critical hit flag.
+        stab: bool,
     }
 
     /// Create a new empty Arena; no bias towards any of the players.
@@ -84,7 +96,7 @@ module game::arena {
         Arena {
             p1: option::none(),
             p2: option::none(),
-            winner: 0,
+            winner: option::none(),
             round: 0,
             history: vector[],
         }
@@ -114,7 +126,7 @@ module game::arena {
         id: address,
         commitment: vector<u8>,
     ) {
-        assert!(self.winner == 0, EWinnerAlreadySet);
+        assert!(option::is_none(&self.winner), EWinnerAlreadySet);
 
         let (p1, _p2) = players_by_id(self, id);
         assert!(option::is_none(&p1.commitment), ECommitmentAlreadySet);
@@ -150,8 +162,15 @@ module game::arena {
 
     // === Getters ===
 
-    /// Getter for the winner.
-    public fun winner(self: &Arena): u8 { self.winner }
+    /// Check if the game is over.
+    public fun is_game_over(self: &Arena): bool {
+        option::is_some(&self.winner)
+    }
+
+    /// Getter for the winner. Fails if the game is not over yet.
+    public fun winner(self: &Arena): address {
+        *option::borrow(&self.winner)
+    }
 
     /// Getter for the current round.
     public fun round(self: &Arena): u8 { self.round }
@@ -160,9 +179,6 @@ module game::arena {
     public fun game_started(self: &Arena): bool {
         option::is_some(&self.p1) && option::is_some(&self.p2)
     }
-
-    /// Internal: util to check whether the game is over
-    public fun is_game_over(self: &Arena): bool { self.winner != 0 }
 
     /// Getter for current player stats (changes every round).
     public fun stats(self: &Arena): (&Stats, &Stats) {
@@ -241,20 +257,36 @@ module game::arena {
 
 
         // IN YOUR FACE ;)
-        battle::attack(&p1.stats, &mut p2.stats, (p1_move as u64), 255);
-        vector::push_back(&mut history, p1_move);
+        let (dmg, eff, stab) = battle::attack(
+            &p1.stats, &mut p2.stats, (p1_move as u64), 255
+        );
+
+        vector::push_back(&mut history, HitRecord {
+            effectiveness: eff,
+            move_: p1_move,
+            damage: dmg,
+            stab,
+        });
 
         if (stats::hp(&p2.stats) == 0) {
-            self.winner = 1;
+            self.winner = option::some(p1.id);
             self.history = history;
             return
         };
 
-        battle::attack(&p2.stats, &mut p1.stats, (p2_move as u64), 255);
-        vector::push_back(&mut history, p2_move);
+        let (dmg, eff, stab) = battle::attack(
+            &p2.stats, &mut p1.stats, (p2_move as u64), 255
+        );
+
+        vector::push_back(&mut history, HitRecord {
+            effectiveness: eff,
+            move_: p2_move,
+            damage: dmg,
+            stab,
+        });
 
         if (stats::hp(&p1.stats) == 0) {
-            self.winner = 2;
+            self.winner = option::some(p2.id);
             self.history = history;
             return
         };
@@ -270,6 +302,11 @@ module game::arena {
             next_move: option::none(),
             commitment: option::none(),
         }
+    }
+
+    #[test_only]
+    public fun player_id_for_testing(player: &ActivePlayer): address {
+        player.id
     }
 }
 
@@ -324,11 +361,10 @@ module game::arena_tests {
         assert!(stats::hp(&p1_stats) > stats::hp(p1_stats_active), 0);
         assert!(stats::hp(&p2_stats) > stats::hp(p2_stats_active), 0);
 
-        std::debug::print(&arena::winner(&arena));
-
-        // turns out p2 actually won this round lmao
+        // turns out p1 actually won this round lmao
         // let's act like we expected it to happen and add an assertion
-        assert!(arena::winner(&arena) == 2, 0);
+        assert!(arena::is_game_over(&arena), 0);
+        assert!(arena::winner(&arena) == p1, 0);
     }
 
     // === Utils ===

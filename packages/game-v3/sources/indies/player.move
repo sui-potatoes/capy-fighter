@@ -16,6 +16,8 @@ module game::player {
     /// The median value for stats.
     const MEDIAN: u8 = 35;
 
+    const BASE_XP: u64 = 250;
+
     /// Error code for when the player is not banned.
     const ENotBanned: u64 = 0;
     /// Error code for when the player is still banned and trying to remove ban,
@@ -33,7 +35,9 @@ module game::player {
         /// Currently assigned based on the type of the player.
         moves: vector<u8>,
         /// The rank of the player; starts at 1200.
-        rank: u64
+        rank: u64,
+        /// The experience of the player; starts at 0.
+        xp: u64,
     }
 
     /// Create a new Player.
@@ -47,7 +51,8 @@ module game::player {
             moves, // *vector::borrow(&STARTER_MOVES, (type as u64))
             stats: generate_stats(type, seed),
             banned_until: option::none(),
-            rank: 1200
+            rank: 1200,
+            xp: BASE_XP,
         }
     }
 
@@ -76,6 +81,22 @@ module game::player {
 
         let banned_until = option::extract(&mut self.banned_until);
         assert!(clock::timestamp_ms(clock) >= banned_until, ENotBanned);
+    }
+
+    /// Add experience to the player.
+    public fun add_xp(self: &mut Player, xp: u64) {
+        self.xp = self.xp + xp;
+
+        let my_level = stats::level(&self.stats);
+        let next_level_req = level_xp_requirement(my_level + 1);
+
+        // Level up until we can't anymore.
+        while (self.xp >= next_level_req) {
+            stats::level_up(&mut self.stats);
+
+            my_level = stats::level(&self.stats);
+            next_level_req = level_xp_requirement(my_level + 1);
+        };
     }
 
     // === Reads ===
@@ -118,6 +139,14 @@ module game::player {
         )
     }
 
+    /// Calculate a requirement for the level of the player.
+    /// Formula: =INT((LEVEL * 1000 / EXP )^2 / 1000)
+    fun level_xp_requirement(level: u8): u64 {
+        let level = (level as u64);
+        let exp = 2;
+        (level * 1000 / exp) * (level * 1000 / exp) / 1000
+    }
+
     /// Smoothens out the value by making it closer to median = 50.
     fun smooth(value: u8): u8 {
         let value = ((value % MEDIAN) + MEDIAN) / 2;
@@ -126,5 +155,44 @@ module game::player {
         } else {
             value
         }
+    }
+
+    #[test]
+    /// Test the level xp requirement.
+    /// Compares the results against the formula and current setup.
+    fun test_level_xp_requirement() {
+        assert!(level_xp_requirement(1) == 250, 1);
+        assert!(level_xp_requirement(2) == 1000, 2);
+        assert!(level_xp_requirement(3) == 2250, 3);
+        assert!(level_xp_requirement(4) == 4000, 4);
+        assert!(level_xp_requirement(5) == 6250, 5);
+        assert!(level_xp_requirement(6) == 9000, 6);
+        assert!(level_xp_requirement(7) == 12250, 7);
+        assert!(level_xp_requirement(8) == 16000, 8);
+        assert!(level_xp_requirement(9) == 20250, 9);
+    }
+
+    #[test]
+    fun test_add_xp() {
+        let ctx = &mut sui::tx_context::dummy();
+        let player = new(
+            0,
+            vector[ 0, 0, 0, 0, 0, 0 ],
+            vector[ 0, 0, 0, 0, 0, 0 ],
+            ctx
+        );
+
+        assert!(stats::level(stats(&player)) == 1, 1);
+        assert!(player.xp == BASE_XP, 2);
+
+        add_xp(&mut player, 1000);
+
+        assert!(stats::level(stats(&player)) == 2, 3);
+        assert!(player.xp == 1000 + BASE_XP, 4);
+
+        add_xp(&mut player, 4000);
+
+        assert!(stats::level(stats(&player)) == 4, 5);
+        assert!(player.xp == 5000 + BASE_XP, 6);
     }
 }

@@ -90,6 +90,14 @@ module game::the_game {
         kiosk: address,
     }
 
+    /// The result of the game that is sent to the Kiosk of the guest. To
+    /// continue playing they must claim the result and apply it to the Player.
+    // struct Result has key {
+        // id: UID,
+        // kiosk: address,
+        // winner: address,
+    // }
+
     // === Extension ===
 
     /// The Extension Witness.
@@ -136,7 +144,7 @@ module game::the_game {
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
         assert!(!has_player(kiosk), EPlayerAlreadyExists);
 
-        // very rough pseudo random seed generator
+        // TODO: better randomness
         let moves = battle::starter_moves(type);
         let rand_source = bcs::to_bytes(&tx_context::fresh_object_address(ctx));
         let player = player::new(type, moves, rand_source, ctx);
@@ -295,6 +303,44 @@ module game::the_game {
 
         // TODO: there needs to be a wrap up / assignment function for when the
         // game is over. both players will have to claim the results.
+    }
+
+    /// Destroy the arena, apply results of the Game and send them to the guest
+    /// player to claim.
+    entry fun wrapup(
+        host_kiosk: &mut Kiosk,
+        host_cap: &KioskOwnerCap,
+        ctx: &mut TxContext
+    ) {
+        assert!(has_arena(host_kiosk), ENoArena);
+        assert!(kiosk::has_access(host_kiosk, host_cap), ENotOwner);
+
+        // we made sure that the caller is the host, now what do we do
+
+        let arena = arena_mut(host_kiosk);
+
+        assert!(arena::is_game_over(arena), EGameOver);
+
+        let winner_id = arena::winner(arena);
+        if (winner_id == id(host_kiosk)) {
+            apply_results(host_kiosk, true, 0)
+        } else {
+            apply_results(host_kiosk, false, 0)
+        };
+    }
+
+    // === Internal: Results ===
+
+    /// Apply the results of the game to the Player.
+    fun apply_results(kiosk: &mut Kiosk, has_won: bool, p2_level: u8) {
+        // let player_mut = player_mut(kiosk);
+        // let my_level = stats::level(player::stats(player_mut));
+        // let level_diff = math::max(my_level as u64, p2_level as u64)
+        //     - math::min(my_level as u64, p2_level as u64);
+
+        // if (has_won) {
+
+        // }
     }
 
     // what does it mean to win? when the host can claim and destruct
