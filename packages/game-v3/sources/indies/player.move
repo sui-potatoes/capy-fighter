@@ -8,18 +8,13 @@
 module game::player {
     use std::vector;
     use std::option::{Self, Option};
-
     use sui::clock::{Self, Clock};
     use sui::tx_context::TxContext;
-    use sui::object::ID;
 
     use pokemon::stats::{Self, Stats};
 
     /// The median value for stats.
     const MEDIAN: u8 = 35;
-
-    // TODO: using a friend before we recompose the system in a better way.
-    friend game::the_game;
 
     /// Error code for when the player is not banned.
     const ENotBanned: u64 = 0;
@@ -29,9 +24,8 @@ module game::player {
     /// A Playable Character type; for now not protected (to not overcompilate
     /// things with generics) but should be.
     struct Player has store, drop {
+        /// The Pokemon stats for the Player.
         stats: Stats,
-        /// The Kiosk ID of the player.
-        kiosk: ID,
         /// Using this field to punish the player for bad behavior. Abandoning
         /// the match or cheating will result in a ban.
         banned_until: Option<u64>,
@@ -43,15 +37,13 @@ module game::player {
     }
 
     /// Create a new Player.
-    public(friend) fun new(
-        kiosk: ID,
+    public fun new(
         type: u8,
         moves: vector<u8>,
         seed: vector<u8>,
         _ctx: &mut TxContext
     ): Player {
         Player {
-            kiosk,
             moves, // *vector::borrow(&STARTER_MOVES, (type as u64))
             stats: generate_stats(type, seed),
             banned_until: option::none(),
@@ -88,13 +80,16 @@ module game::player {
 
     // === Reads ===
 
-    /// Get the stats of the player.
+    /// Get the stats of the `Player`.
     public fun stats(self: &Player): &Stats { &self.stats }
 
-    /// Get the kiosk of the player.
-    public fun kiosk(self: &Player): ID { self.kiosk }
+    /// Get the rank of the Player.
+    public fun rank(self: &Player): u64 { self.rank }
 
-    /// Get the ban status of the player.
+    /// Get the `moves` of the `Player`.
+    public fun moves(self: &Player): vector<u8> { self.moves }
+
+    /// Get the ban status of the `Player`.
     public fun banned_until(self: &Player): Option<u64> { self.banned_until }
 
     /// Check if the player is banned.

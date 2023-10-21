@@ -24,11 +24,6 @@ module game::pool {
     use sui::tx_context::TxContext;
     use sui::object::{Self, UID};
 
-    // const EPoolEmpty: u64 = 0;
-    // const EOnlyOnePlayer: u64 = 1;
-    // const EPlayerNotFound: u64 = 2;
-    // const EMatchNotFound: u64 = 3;
-
     /// The current orders pool.
     struct Pool has key, store {
         id: UID,
@@ -57,7 +52,7 @@ module game::pool {
         id // hehe; proof of deletion!
     }
 
-    /// Submit a single order; does not guarantee a match.
+    /// Submit a single order. An attempt to match
     public fun submit_order(
         self: &mut Pool,
         id: address,
@@ -68,13 +63,7 @@ module game::pool {
         vector::push_back(&mut self.orders, order);
     }
 
-    /// Shall we just do what we believe is right? Just push through the impl
-    /// and figure out the details and ways to perfect it on the way? ;)
-    ///
-    /// Note to self: with the addition of Buckets we can make the matching
-    /// process much more efficient by grouping players by their value.
-    ///
-    /// Todo: kill me if I ship this to production. lmao
+    /// Find a match in a Pool with given parameters.
     public fun find_match(
         self: &mut Pool,
         id: address,
@@ -154,11 +143,6 @@ module game::pool {
         assert!(size(&pool) == 0, 0);
 
         let Pool { id, orders: _ } = pool;
-
-        // the whole buckets / matching idea kinda falls into the same category
-        // with the whole "generic" vs "specific" thing. if the matching engine
-        // is generic we can add buckets or some extra optimizations in the game
-        // specific context. right? right!
 
         object::delete(id)
     }
