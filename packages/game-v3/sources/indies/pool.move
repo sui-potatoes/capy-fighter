@@ -112,8 +112,8 @@ module game::pool {
             let _player = vector::remove(orders, idx);
             match
         } else {
-            let _player = vector::remove(orders, match);
-            vector::remove(orders, idx)
+            let _player = vector::remove(orders, idx);
+            vector::remove(orders, match)
         };
 
         option::some(match.id)
@@ -144,6 +144,21 @@ module game::pool {
 
         let Pool { id, orders: _ } = pool;
 
+        object::delete(id)
+    }
+
+    #[test]
+    fun test_one_to_one() {
+        let ctx = &mut sui::tx_context::dummy();
+        let pool = Pool { id: object::new(ctx), orders: vector[] };
+
+        submit_order(&mut pool, @0x1, 1, 0);
+        submit_order(&mut pool, @0x2, 1, 0);
+
+        find_match(&mut pool, @0x2, 1, 0);
+
+        assert!(size(&pool) == 0, 0);
+        let Pool { id, orders: _ } = pool;
         object::delete(id)
     }
 }

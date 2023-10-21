@@ -1,10 +1,14 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
-/// The Player module; defines the Player generation + Stats accessors.
+/// Player module for the game.
 ///
-/// - All players start with Level = 1.
-/// - Players can be created by anyone (for now).
+/// It is responsible for the player stats, moves, rank, experience and banning.
+///
+/// Provides API for:
+/// - creating and initializing a new player
+/// - banning and unbanning a player
+/// - adding experience to a player + level up
 module game::player {
     use std::vector;
     use std::option::{Self, Option};
@@ -15,7 +19,7 @@ module game::player {
 
     /// The median value for stats.
     const MEDIAN: u8 = 35;
-
+    /// The base XP for the player (to not tweak the algorithm too much).
     const BASE_XP: u64 = 250;
 
     /// Error code for when the player is not banned.
@@ -83,14 +87,14 @@ module game::player {
         assert!(clock::timestamp_ms(clock) >= banned_until, ENotBanned);
     }
 
-    /// Add experience to the player.
+    /// Add experience to the player. Level up if possible.
     public fun add_xp(self: &mut Player, xp: u64) {
         self.xp = self.xp + xp;
 
         let my_level = stats::level(&self.stats);
         let next_level_req = level_xp_requirement(my_level + 1);
 
-        // Level up until we can't anymore.
+        // Level up until we can't anymore; can be more than one level.
         while (self.xp >= next_level_req) {
             stats::level_up(&mut self.stats);
 

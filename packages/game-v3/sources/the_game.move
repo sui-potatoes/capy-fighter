@@ -110,6 +110,8 @@ module game::the_game {
     /// The version of the game.
     const VERSION: u16 = 1;
 
+    const POOL_KEY: vector<u8> = b"pool";
+
     /// Install the game in the user Kiosk; a necessary step to allow all the
     /// other operations in the game.
     entry fun install(
@@ -118,6 +120,14 @@ module game::the_game {
         ctx: &mut TxContext
     ) {
         ext::add(Game {}, kiosk, cap, PERMISSIONS, ctx)
+    }
+
+    /// Initialize the game.
+    fun init(ctx: &mut TxContext) {
+        let id = object::new(ctx);
+
+        df::add(&mut id, POOL_KEY, pool::new(ctx));
+        transfer::share_object(TheGame { id, version: VERSION });
     }
 
     // === The Game Itself ===
@@ -369,7 +379,7 @@ module game::the_game {
     /// custom keys, we're utilizing the upgradeability of the inline primitives
     /// in case the data structure changes.
     fun pool_mut(the_game: &mut TheGame): &mut Pool {
-        df::borrow_mut(&mut the_game.id, b"pool")
+        df::borrow_mut(&mut the_game.id, POOL_KEY)
     }
 
     // === Internal Storage: Kiosk ===
@@ -448,5 +458,103 @@ module game::the_game {
     /// The libs operate on just IDs, this function helps get them faster-better
     fun id(kiosk: &Kiosk): address {
         object::id_to_address(&object::id(kiosk))
+    }
+
+    // === Test-only functions ===
+
+    #[test_only]
+    public fun new_game_for_testing(ctx: &mut TxContext): TheGame {
+        TheGame {
+            id: object::new(ctx),
+            version: VERSION
+        }
+    }
+
+    #[test_only]
+    public fun burn_game_for_testing(game: TheGame) {
+        let TheGame { version: _, id } = game;
+        object::delete(id)
+    }
+
+    #[test_only]
+    public fun install_for_testing(
+        kiosk: &mut Kiosk,
+        cap: &KioskOwnerCap,
+        ctx: &mut TxContext
+    ) {
+        install(kiosk, cap, ctx)
+    }
+
+    #[test_only]
+    public fun new_player_for_testing(
+        kiosk: &mut Kiosk,
+        cap: &KioskOwnerCap,
+        type: u8,
+        ctx: &mut TxContext
+    ) {
+        new_player(kiosk, cap, type, ctx)
+    }
+
+    #[test_only]
+    public fun play_for_testing(
+        game: &mut TheGame,
+        kiosk: &mut Kiosk,
+        cap: &KioskOwnerCap,
+        ctx: &mut TxContext
+    ) {
+        play(game, kiosk, cap, ctx)
+    }
+
+    #[test_only]
+    public fun join_for_testing(
+        my_kiosk: &mut Kiosk,
+        my_kiosk_cap: &KioskOwnerCap,
+        other_kiosk: &mut Kiosk,
+        invite: Receiving<Invite>,
+        ctx: &mut TxContext
+    ) {
+        join(my_kiosk, my_kiosk_cap, other_kiosk, invite, ctx)
+    }
+
+    #[test_only]
+    public fun commit_for_testing(
+        host_kiosk: &mut Kiosk,
+        cap: &KioskOwnerCap,
+        commitment: vector<u8>,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        commit(host_kiosk, cap, commitment, clock, ctx)
+    }
+
+    #[test_only]
+    public fun reveal_for_testing(
+        host_kiosk: &mut Kiosk,
+        cap: &KioskOwnerCap,
+        move_: u8,
+        salt: vector<u8>,
+        clock: &Clock,
+        ctx: &mut TxContext
+    ) {
+        reveal(host_kiosk, cap, move_, salt, clock, ctx)
+    }
+
+    #[test_only]
+    public fun wrapup_for_testing(
+        host_kiosk: &mut Kiosk,
+        host_cap: &KioskOwnerCap,
+        ctx: &mut TxContext
+    ) {
+        wrapup(host_kiosk, host_cap, ctx)
+    }
+
+    #[test_only]
+    public fun get_invite_for_testing(
+        kiosk: address, ctx: &mut TxContext
+    ): Invite {
+        Invite {
+            id: object::new(ctx),
+            kiosk: kiosk
+        }
     }
 }
