@@ -42,6 +42,10 @@ module game::player {
         rank: u64,
         /// The experience of the player; starts at 0.
         xp: u64,
+        /// The number of wins of the player.
+        wins: u64,
+        /// The number of losses of the player.
+        losses: u64,
     }
 
     /// Create a new Player.
@@ -57,6 +61,8 @@ module game::player {
             banned_until: option::none(),
             rank: 1200,
             xp: BASE_XP,
+            wins: 0,
+            losses: 0,
         }
     }
 
@@ -103,6 +109,12 @@ module game::player {
         };
     }
 
+    /// Add a win to the player.
+    public fun add_win(self: &mut Player) { self.wins = self.wins + 1; }
+
+    /// Add a loss to the player.
+    public fun add_loss(self: &mut Player) { self.losses = self.losses + 1; }
+
     // === Reads ===
 
     /// Get the stats of the `Player`.
@@ -120,6 +132,16 @@ module game::player {
     /// Check if the player is banned.
     public fun is_banned(self: &Player): bool {
         option::is_some(&self.banned_until)
+    }
+
+    // === Utils ===
+
+    /// How much experience a Player would get for beating a player of a certain
+    /// level.
+    /// Formula: =LEVEL^2 * 50 + 100
+    public fun xp_for_level(_self: &Player, level: u8): u64 {
+        let level = (level as u64);
+        (level * level * 50) + 100
     }
 
     // === Internal ===

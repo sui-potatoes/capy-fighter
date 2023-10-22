@@ -225,6 +225,16 @@ module game::arena {
         is_p1 || is_p2
     }
 
+    /// Return the ID of the first player.
+    public fun p1_id(self: &Arena): address {
+        option::borrow(&self.p1).id
+    }
+
+    /// Return the ID of the second player.
+    public fun p2_id(self: &Arena): address {
+        option::borrow(&self.p2).id
+    }
+
     // === Internal ===
 
     /// Return Pokemons based on their speed.
@@ -304,6 +314,8 @@ module game::arena {
             commitment: option::none(),
         }
     }
+
+    // === Test Only ===
 
     #[test_only]
     public fun player_id_for_testing(player: &ActivePlayer): address {

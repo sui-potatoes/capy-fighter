@@ -20,7 +20,7 @@ module game::prelude {
     public fun get_kiosk(ctx: &mut TxContext): (Kiosk, KioskOwnerCap) {
         let (kiosk, kiosk_cap) = test::get_kiosk(ctx);
 
-        the_game::install_for_testing(&mut kiosk, &kiosk_cap, ctx);
+        // the_game::install_for_testing(&mut kiosk, &kiosk_cap, ctx);
 
         (kiosk, kiosk_cap)
     }

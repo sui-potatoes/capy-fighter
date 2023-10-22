@@ -260,7 +260,7 @@ async function play() {
       throw new Error("Failed to fetch invites for the Kiosk!");
     }
 
-    // Filter out invites by type (we should be extra careful about this one).
+    // Filter out invites by type;
     let invite = data.find(
       (o) => o.data.content.type == `${pkg}::the_game::Invite`
     );
@@ -323,7 +323,7 @@ async function play() {
 
     let extensionStorageId = extData.storage;
 
-    return listenAndPlayV2(hostId, extensionStorageId, myCap, player);
+    return listenAndPlay(hostId, extensionStorageId, myCap, player);
   }
 
   // We are the host, the only thing we need to make sure of is that another
@@ -338,7 +338,7 @@ async function play() {
     let hostId = kioskIds[0];
     let player = "p1";
 
-    return listenAndPlayV2(hostId, extensionStorageId, myCap, player);
+    return listenAndPlay(hostId, extensionStorageId, myCap, player);
   }
 
   if (matchData && matchData.status == GUEST) {
@@ -356,29 +356,8 @@ async function play() {
 
     let extensionStorageId = extData.storage;
 
-    return listenAndPlayV2(hostId, extensionStorageId, myCap, player);
+    return listenAndPlay(hostId, extensionStorageId, myCap, player);
   }
-
-  //     console.log("Still searching; do you want to cancel the search?");
-  //     let res = await inquirer.prompt([
-  //       {
-  //         type: "confirm",
-  //         name: "cancel",
-  //         prefix: ">",
-  //         message: "Cancel the search?",
-  //       },
-  //     ]);
-
-  //       let tx = new TransactionBlock();
-  //       let cap = tx.objectRef(kioskOwnerCaps[0]);
-  //       let matchArg = tx.sharedObjectRef(theGame);
-  //       let kioskArg = tx.object(kioskIds[0]);
-  //       tx.moveCall({
-  //         target: `${pkg}::the_game::cancel_search`,
-  //         arguments: [kioskArg, matchArg, cap],
-  //       });
-
-  // if there's no matchId, then we need to request a match
 
   let tx = new TransactionBlock();
   let cap = tx.objectRef(kioskOwnerCaps[0]);
@@ -394,7 +373,7 @@ async function play() {
   console.log("Match search started!; %o", result.effects.status);
 }
 
-async function listenAndPlayV2(
+async function listenAndPlay(
   hostId,
   extensionStorageId,
   capId,
@@ -472,7 +451,7 @@ async function listenAndPlayV2(
 
     console.log("Committed!", result.effects.status);
 
-    return listenAndPlayV2(hostId, extensionStorageId, capId, player, move);
+    return listenAndPlay(hostId, extensionStorageId, capId, player, move);
   }
 
   if (action == "reveal") {
@@ -487,18 +466,25 @@ async function listenAndPlayV2(
 
     console.log("Revealed!", result.effects.status);
 
-    return listenAndPlayV2(hostId, extensionStorageId, capId, player, move);
+    return listenAndPlay(hostId, extensionStorageId, capId, player, move);
+  }
+
+  if (action == "end" && player == "p2") {
+    console.log("Battle has ended, waiting for the host to wrap up");
+    action = "wait";
+  }
+
+  if (action == "end" && player == "p1") {
+    console.log("Battle has ended!");
+    console.log("Winner is: %s", battle.winner);
+
+
+    return;
   }
 
   if (action == "wait") {
     await wait(WAIT_TIME);
-    return listenAndPlayV2(hostId, extensionStorageId, capId, player, move);
-  }
-
-  if (action == "end") {
-    console.log("Battle has ended!");
-    console.log("Winner is: %s", battle.winner);
-    return;
+    return listenAndPlay(hostId, extensionStorageId, capId, player, move);
   }
 
   return console.log(
@@ -543,6 +529,18 @@ function reveal(hostId, capId, move, salt, gas = null) {
       tx.pure(bcs.vector(bcs.u8()).serialize(salt).toBytes()),
       tx.object("0x6"), // clock
     ],
+  });
+
+  return signAndExecute(tx, gas);
+}
+
+/** P1 performs a cleanup */
+function wrapup(hostId, capId, gas = null) {
+  let tx = new TransactionBlock();
+
+  tx.moveCall({
+    target: `${pkg}::the_game::wrapup`,
+    arguments: [tx.object(hostId), tx.object(capId)],
   });
 
   return signAndExecute(tx, gas);

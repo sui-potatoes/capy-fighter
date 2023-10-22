@@ -22,9 +22,8 @@ module game::the_game {
     use sui::tx_context::{Self, TxContext};
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
 
-    use pokemon::stats;
+    use pokemon::stats::{Self, Stats};
 
-    //
     use game::battle;
     use game::arena::{Self, Arena};
     use game::player::{Self, Player};
@@ -47,25 +46,33 @@ module game::the_game {
     /// Emitted when the game is over.
     const EGameOver: u64 = 7;
     /// For when the user is not invited to this Host.
-    const ENotInvited: u64 = 11;
+    const ENotInvited: u64 = 8;
     /// The user is trying to play, but the player is banned.
-    const EPlayerIsBanned: u64 = 6;
+    const EPlayerIsBanned: u64 = 9;
     /// The user is trying to join, but the invite is not for them.
-    const EWeDontKnowYou: u64 = 9;
+    const EWeDontKnowYou: u64 = 10;
     /// The user is trying to play, but the version is not supported (or legacy).
-    const EInvalidVersion: u64 = 10;
+    const EInvalidVersion: u64 = 11;
     /// Trying to cancel the search, but there's no search.
     const ENotSearching: u64 = 12;
+    /// Trying to wrap up the game, but the game is not over.
+    const EGameNotOver: u64 = 13;
+
+    // === Constants ===
+
+    /// The version of the game.
+    const VERSION: u16 = 1;
+
+    /// The key for the Pool in the Dynamic Field.
+    const POOL_KEY: vector<u8> = b"pool";
 
     // === The main object ===
 
-    #[allow(unused_field)]
     /// The game object is the central piece of application which currently acts
     /// as the data source for matchmaking and the version gating mechanism.
     struct TheGame has key {
         id: UID,
-        /// The version tracker to keep compatibility. Not used in the V1,
-        /// however will potentially be utilized in the future.
+        /// Allows for version-gating the game.
         version: u16,
     }
 
@@ -84,6 +91,8 @@ module game::the_game {
     /// The value stored under the `MatchKey` is an `Arena` or an `ID`.
     struct MatchKey has store, copy, drop {}
 
+    // === Messages (TTO) ===
+
     /// A game invite for another player to join. By transferring this object
     /// to the other player's Kiosk, we avoid dynamic field creation and
     /// instead utilize the `transfer to object` feature.
@@ -92,13 +101,14 @@ module game::the_game {
         kiosk: address,
     }
 
-    /// The result of the game that is sent to the Kiosk of the guest. To
-    /// continue playing they must claim the result and apply it to the Player.
-    // struct Result has key {
-        // id: UID,
-        // kiosk: address,
-        // winner: address,
-    // }
+    /// The result of the game that is sent to the guest player by the host.
+    /// To continue playing they must claim the result and apply it to the
+    /// Player. Sent and claimed via the `transfer to object` feature.
+    struct Result has key {
+        id: UID,
+        has_won: bool,
+        opponent_stats: Stats,
+    }
 
     // === Extension ===
 
@@ -108,11 +118,6 @@ module game::the_game {
     /// Currently the game requires 0 permissions. However, we might reconsider
     /// once the items / boosts / perks system is up.
     const PERMISSIONS: u128 = 2;
-
-    /// The version of the game.
-    const VERSION: u16 = 1;
-
-    const POOL_KEY: vector<u8> = b"pool";
 
     /// Install the game in the user Kiosk; a necessary step to allow all the
     /// other operations in the game.
@@ -124,7 +129,8 @@ module game::the_game {
         ext::add(Game {}, kiosk, cap, PERMISSIONS, ctx)
     }
 
-    /// Initialize the game.
+    /// Initialize the game: share the Game singleton for searching matches and
+    /// attach a Pool to it.
     fun init(ctx: &mut TxContext) {
         let id = object::new(ctx);
 
@@ -133,16 +139,6 @@ module game::the_game {
     }
 
     // === The Game Itself ===
-
-    // The Game features description:
-    //
-    // - [+] install a game
-    // - [+] create a new player (drop a player) // currently there can be only 1P
-    // - [+] search for a game
-    // - [+] play the game
-    // - [+] calculate the results
-    // - update Player ratings
-    // - repeat
 
     /// Currently there can be only one player!
     entry fun new_player(
@@ -287,7 +283,7 @@ module game::the_game {
         assert!(has_arena(host_kiosk), ENoArena);
 
         let arena = arena_mut(host_kiosk);
-        let player_id = object::id_to_address(&kiosk::kiosk_owner_cap_for(cap));
+        let player_id = id_from_cap(cap);
 
         assert!(arena::has_player(arena, player_id), EWeDontKnowYou);
         assert!(!arena::is_game_over(arena), EGameOver);
@@ -320,7 +316,7 @@ module game::the_game {
         assert!(has_arena(host_kiosk), ENoArena);
 
         let arena = arena_mut(host_kiosk);
-        let player_id = object::id_to_address(&kiosk::kiosk_owner_cap_for(cap));
+        let player_id = id_from_cap(cap);
 
         assert!(arena::has_player(arena, player_id), EWeDontKnowYou);
         assert!(!arena::is_game_over(arena), EGameOver);
@@ -336,6 +332,9 @@ module game::the_game {
 
     /// Destroy the arena, apply results of the Game and send them to the guest
     /// player to claim.
+    ///
+    /// Emergency scenarios (TODO):
+    /// - host is not responding
     entry fun wrapup(
         host_kiosk: &mut Kiosk,
         host_cap: &KioskOwnerCap,
@@ -344,32 +343,60 @@ module game::the_game {
         assert!(has_arena(host_kiosk), ENoArena);
         assert!(kiosk::has_access(host_kiosk, host_cap), ENotOwner);
 
-        // we made sure that the caller is the host, now what do we do
+        let arena = bag::remove(storage_mut(host_kiosk), MatchKey {});
 
-        let arena = arena_mut(host_kiosk);
+        assert!(arena::is_game_over(&arena), EGameNotOver);
 
-        assert!(arena::is_game_over(arena), EGameOver);
+        let winner_id = arena::winner(&arena);
+        let (p1_stats, p2_stats) = arena::stats(&arena);
+        let p2_id = arena::p2_id(&arena);
 
-        let winner_id = arena::winner(arena);
+        // applies results to the host + sends results to the guest player
         if (winner_id == id(host_kiosk)) {
-            apply_results(host_kiosk, true, 0)
+            apply_results(host_kiosk, true, p2_stats);
+            send_results(p2_id, false, *p1_stats, ctx);
         } else {
-            apply_results(host_kiosk, false, 0)
+            apply_results(host_kiosk, false, p2_stats);
+            send_results(p2_id, true, *p1_stats, ctx);
         };
+
+        let _ = arena; // just a reminder that Arena has drop
     }
 
     // === Internal: Results ===
 
     /// Apply the results of the game to the Player.
-    fun apply_results(kiosk: &mut Kiosk, has_won: bool, p2_level: u8) {
-        // let player_mut = player_mut(kiosk);
-        // let my_level = stats::level(player::stats(player_mut));
-        // let level_diff = math::max(my_level as u64, p2_level as u64)
-        //     - math::min(my_level as u64, p2_level as u64);
+    fun apply_results(
+        kiosk: &mut Kiosk,
+        has_won: bool,
+        opponent_stats: &Stats
+    ) {
+        let player_mut = player_mut(kiosk);
+        let xp = player::xp_for_level(player_mut, stats::level(opponent_stats));
 
-        // if (has_won) {
+        if (has_won) {
+            player::add_win(player_mut);
+            player::add_xp(player_mut, xp);
+        } else {
+            player::add_loss(player_mut);
+            player::add_xp(player_mut, xp / 5);
+        }
+    }
 
-        // }
+    /// Send the results of the game to the guest player. The guest player will
+    /// have to claim the results to apply them to their Kiosk to continue
+    /// playing the game.
+    fun send_results(
+        guest_kiosk: address,
+        has_won: bool,
+        opponent_stats: Stats,
+        ctx: &mut TxContext
+    ) {
+        transfer::transfer(Result {
+            id: object::new(ctx),
+            opponent_stats,
+            has_won,
+        }, guest_kiosk);
     }
 
     // what does it mean to win? when the host can claim and destruct
@@ -403,11 +430,12 @@ module game::the_game {
 
     // === Internal Storage: Kiosk ===
 
-    #[allow(unused_function)]
+    /// Get a reference to the Extension Storage.
     fun storage(kiosk: &Kiosk): &Bag {
         ext::storage(Game {}, kiosk)
     }
 
+    /// Get a mutable reference to the Extension Storage.
     fun storage_mut(kiosk: &mut Kiosk): &mut Bag {
         ext::storage_mut(Game {}, kiosk)
     }
@@ -459,7 +487,6 @@ module game::the_game {
         bag::borrow(ext::storage(Game {}, kiosk), PlayerKey {})
     }
 
-    #[allow(unused_function)]
     /// Get a mutable reference to the `Player` struct stored in the Extension.
     fun player_mut(kiosk: &mut Kiosk): &mut Player {
         bag::borrow_mut(ext::storage_mut(Game {}, kiosk), PlayerKey {})
@@ -474,106 +501,15 @@ module game::the_game {
         )
     }
 
-    /// The libs operate on just IDs, this function helps get them faster-better
+    // === Utilities ===
+
+    /// The libs operate on just IDs, this function helps get them faster
     fun id(kiosk: &Kiosk): address {
         object::id_to_address(&object::id(kiosk))
     }
 
-    // === Test-only functions ===
-
-    #[test_only]
-    public fun new_game_for_testing(ctx: &mut TxContext): TheGame {
-        TheGame {
-            id: object::new(ctx),
-            version: VERSION
-        }
-    }
-
-    #[test_only]
-    public fun burn_game_for_testing(game: TheGame) {
-        let TheGame { version: _, id } = game;
-        object::delete(id)
-    }
-
-    #[test_only]
-    public fun install_for_testing(
-        kiosk: &mut Kiosk,
-        cap: &KioskOwnerCap,
-        ctx: &mut TxContext
-    ) {
-        install(kiosk, cap, ctx)
-    }
-
-    #[test_only]
-    public fun new_player_for_testing(
-        kiosk: &mut Kiosk,
-        cap: &KioskOwnerCap,
-        type: u8,
-        ctx: &mut TxContext
-    ) {
-        new_player(kiosk, cap, type, ctx)
-    }
-
-    #[test_only]
-    public fun play_for_testing(
-        game: &mut TheGame,
-        kiosk: &mut Kiosk,
-        cap: &KioskOwnerCap,
-        ctx: &mut TxContext
-    ) {
-        play(game, kiosk, cap, ctx)
-    }
-
-    #[test_only]
-    public fun join_for_testing(
-        my_kiosk: &mut Kiosk,
-        my_kiosk_cap: &KioskOwnerCap,
-        other_kiosk: &mut Kiosk,
-        invite: Receiving<Invite>,
-        ctx: &mut TxContext
-    ) {
-        join(my_kiosk, my_kiosk_cap, other_kiosk, invite, ctx)
-    }
-
-    #[test_only]
-    public fun commit_for_testing(
-        host_kiosk: &mut Kiosk,
-        cap: &KioskOwnerCap,
-        commitment: vector<u8>,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        commit(host_kiosk, cap, commitment, clock, ctx)
-    }
-
-    #[test_only]
-    public fun reveal_for_testing(
-        host_kiosk: &mut Kiosk,
-        cap: &KioskOwnerCap,
-        move_: u8,
-        salt: vector<u8>,
-        clock: &Clock,
-        ctx: &mut TxContext
-    ) {
-        reveal(host_kiosk, cap, move_, salt, clock, ctx)
-    }
-
-    #[test_only]
-    public fun wrapup_for_testing(
-        host_kiosk: &mut Kiosk,
-        host_cap: &KioskOwnerCap,
-        ctx: &mut TxContext
-    ) {
-        wrapup(host_kiosk, host_cap, ctx)
-    }
-
-    #[test_only]
-    public fun get_invite_for_testing(
-        kiosk: address, ctx: &mut TxContext
-    ): Invite {
-        Invite {
-            id: object::new(ctx),
-            kiosk: kiosk
-        }
+    /// Get the address of the Kiosk from the `KioskOwnerCap`
+    fun id_from_cap(cap: &KioskOwnerCap): address {
+        object::id_to_address(&kiosk::kiosk_owner_cap_for(cap))
     }
 }
