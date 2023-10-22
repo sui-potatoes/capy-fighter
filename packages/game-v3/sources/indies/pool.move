@@ -136,9 +136,9 @@ module game::pool {
         let pool = Pool { id: object::new(ctx), orders: vector[] };
 
         let order_1 = submit_order(&mut pool, @0x1, 1, 0);
-        let order_2 = submit_order(&mut pool, @0x2, 1, 0);
+        let _order_2 = submit_order(&mut pool, @0x2, 1, 0);
         let order_3 = submit_order(&mut pool, @0x3, 1, 0);
-        let order_4 = submit_order(&mut pool, @0x4, 1, 0);
+        let _order_4 = submit_order(&mut pool, @0x4, 1, 0);
 
         find_match(&mut pool, &order_1);
         assert!(size(&pool) == 2, 0);

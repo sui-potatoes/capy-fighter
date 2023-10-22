@@ -6,10 +6,10 @@
 /// make testing as simple as possible.
 module game::prelude {
     use sui::kiosk_test_utils::{Self as test};
-    use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
+    use sui::kiosk::{Kiosk, KioskOwnerCap};
     use sui::tx_context::{Self, TxContext};
 
-    use game::the_game;
+    // use game::the_game;
 
     /// Returns a dummy TxContext.
     public fun ctx(): TxContext {

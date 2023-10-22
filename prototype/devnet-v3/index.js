@@ -33,11 +33,11 @@ const HOST = "Host";
 // === Sui Devnet Environment ===
 
 const pkg =
-  "0x4feb2885ae048bc8f1b0a951e48fa3302e9fbc559456f727689eb32310c7834c";
+  "0x6a321654b5e45d365eb48fe7ad06ce6ac7ed8204e712e92f8960946c0bb1d672";
 const theGame = {
   objectId:
-    "0x3348fd7c5523219c315d69803c8db30b11d9b8a787d50699d93d0682aebb2b39",
-  initialSharedVersion: 73,
+    "0xadd17d2578d7ae782a4d4f32ec6efa67e68eaeb7d8b98358309651fb7a0b477f",
+  initialSharedVersion: 75,
   mutable: true,
 };
 
@@ -80,6 +80,11 @@ program
   .command("new-player")
   .description("Create a new player account")
   .action(newPlayer);
+
+program
+  .command("stats")
+  .description("Get the stats of the player")
+  .action(getStats);
 
 program.command("play").description("Play the game").action(play);
 
@@ -216,6 +221,44 @@ async function newPlayer() {
 }
 
 /**
+ * Get the stats of the player.
+ */
+async function getStats() {
+  let { kioskOwnerCaps, kioskIds } = await kioskClient.getOwnedKiosks({
+    address,
+  });
+
+  if (kioskOwnerCaps.length === 0) {
+    throw new Error("Kiosk does not exist; run `init` first!");
+  }
+
+  let { data: extData, error: extErr } = await getExtension(kioskIds[0]);
+
+  if (extErr) {
+    throw new Error("Extension not installed; run `init` first!");
+  }
+
+  let { data: playerData, error } = await getPlayer(extData.storage);
+
+  if (error || !playerData) {
+    throw new Error("Player does not exists!");
+  }
+
+  let player = stripFields(playerData.content.fields.value);
+  console.log(JSON.stringify({
+    ["Wins / Losses"]: `${player.wins} / ${player.losses}`,
+    ["Level (XP)"]: `${player.stats.level} (${player.xp})`,
+    ["Max HP"]: formatHP(player.stats.max_hp),
+    ["Attack"]: player.stats.attack,
+    ["Defense"]: player.stats.defense,
+    ["Speed"]: player.stats.speed,
+    ["Type"]: typesDefinitions()[player.stats.types[0]].name,
+    ["Moves"]: player.moves.map((id) => movesDefinitions()[id].name),
+    ["Banned"]: !!player.banned_until,
+  }, null, 4));
+}
+
+/**
  * Play the game:
  * - submit a request to the Matchmaker
  * - wait for the match to be found
@@ -265,7 +308,7 @@ async function play() {
       (o) => o.data.content.type == `${pkg}::the_game::Invite`
     );
     if (!invite) {
-      console.log('Still searching; do you want to cancel the search?');
+      console.log("Still searching; do you want to cancel the search?");
       let { cancel } = await inquirer.prompt([
         {
           type: "confirm",
@@ -313,7 +356,7 @@ async function play() {
     /* Join the match at the Host with my Cap */
 
     let hostId = invite.data.content.fields.kiosk;
-    let myCap = kioskOwnerCaps[0].objectId;
+    let myCap = kioskOwnerCaps[0];
     let player = "p2";
 
     let { data: extData } = await getExtension(hostId);
@@ -330,11 +373,10 @@ async function play() {
   // player has joined (you're P1, they're P2).
   if (matchData && matchData.status == HOST) {
     console.log("You are the host!");
-    console.log(JSON.stringify(matchData, null, 4));
 
     // host extension storage
     let extensionStorageId = extData.storage;
-    let myCap = kioskOwnerCaps[0].objectId;
+    let myCap = kioskOwnerCaps[0];
     let hostId = kioskIds[0];
     let player = "p1";
 
@@ -343,10 +385,9 @@ async function play() {
 
   if (matchData && matchData.status == GUEST) {
     console.log("You are the guest and joined the match");
-    console.log(JSON.stringify(matchData, null, 4));
 
     let hostId = matchData.data.hostId;
-    let myCap = kioskOwnerCaps[0].objectId;
+    let myCap = kioskOwnerCaps[0];
     let player = "p2";
 
     let { data: extData } = await getExtension(hostId);
@@ -376,13 +417,28 @@ async function play() {
 async function listenAndPlay(
   hostId,
   extensionStorageId,
-  capId,
+  kioskCap,
   player = "p1",
-  move = null
+  move = null,
+  reuseGasObj = null,
 ) {
   let { data, error } = await getMatchStatus(extensionStorageId);
 
+  // Error means that either we failed to fetch OR there's no match at the host
+  // already - which means the game has concluded but the guest player hasn't
+  // received the Result just yet.
   if (error) {
+    let resultObj = await getResult(kioskCap);
+    if (resultObj) {
+      console.log("Battle has ended; but you haven't confirmed the result yet!");
+      let { result } = await unlock(kioskCap, resultObj, reuseGasObj);
+      console.log(
+        "Match concluded! You can play again; %o",
+        result.effects.status
+      );
+      return process.exit(0);
+    }
+
     throw new Error(`Could not fetch match status: ${error}; Unknown error`);
   }
 
@@ -447,11 +503,11 @@ async function listenAndPlay(
 
     let salt = [1, 2, 3, 4];
     let move = await chooseMove(battle[player].moves);
-    let { result } = await commit(hostId, capId, move, salt);
+    let { result, gas } = await commit(hostId, kioskCap.objectId, move, salt, reuseGasObj);
 
     console.log("Committed!", result.effects.status);
 
-    return listenAndPlay(hostId, extensionStorageId, capId, player, move);
+    return listenAndPlay(hostId, extensionStorageId, kioskCap, player, move, gas);
   }
 
   if (action == "reveal") {
@@ -462,15 +518,26 @@ async function listenAndPlay(
     }
 
     let salt = [1, 2, 3, 4];
-    let { result } = await reveal(hostId, capId, move, salt);
+    let { result, gas } = await reveal(hostId, kioskCap.objectId, move, salt, reuseGasObj);
 
     console.log("Revealed!", result.effects.status);
 
-    return listenAndPlay(hostId, extensionStorageId, capId, player, move);
+    return listenAndPlay(hostId, extensionStorageId, kioskCap, player, move, gas);
   }
 
   if (action == "end" && player == "p2") {
     console.log("Battle has ended, waiting for the host to wrap up");
+
+    let resultObj = await getResult(kioskCap);
+    if (resultObj) {
+      let { result } = await unlock(kioskCap, resultObj, reuseGasObj);
+      console.log(
+        "Match concluded! You can play again; %o",
+        result.effects.status
+      );
+      return process.exit(0);
+    }
+
     action = "wait";
   }
 
@@ -478,13 +545,15 @@ async function listenAndPlay(
     console.log("Battle has ended!");
     console.log("Winner is: %s", battle.winner);
 
+    let { result } = await wrapup(hostId, kioskCap.objectId, reuseGasObj);
 
-    return;
+    console.log("Game wrapped up!; %o", result.effects.status);
+    return process.exit(0);
   }
 
   if (action == "wait") {
     await wait(WAIT_TIME);
-    return listenAndPlay(hostId, extensionStorageId, capId, player, move);
+    return listenAndPlay(hostId, extensionStorageId, kioskCap, player, move, reuseGasObj);
   }
 
   return console.log(
@@ -537,10 +606,47 @@ function reveal(hostId, capId, move, salt, gas = null) {
 /** P1 performs a cleanup */
 function wrapup(hostId, capId, gas = null) {
   let tx = new TransactionBlock();
+  let capArg = tx.object(capId);
+  let kioskArg = tx.object(hostId);
 
   tx.moveCall({
     target: `${pkg}::the_game::wrapup`,
-    arguments: [tx.object(hostId), tx.object(capId)],
+    arguments: [kioskArg, capArg],
+  });
+
+  return signAndExecute(tx, gas);
+}
+
+/** Check whether Guest player already has `Result` object */
+async function getResult(kioskCap) {
+  let { data, error } = await client.getOwnedObjects({
+    owner: kioskCap.kioskId,
+    options: { showType: true, showContent: true },
+  });
+
+  if (error) {
+    throw new Error("Failed to fetch results!");
+  }
+
+  return data.find((o) => o.data.type == `${pkg}::the_game::Result`);
+}
+
+/**
+ * Check whether Result object is received, if not - false;
+ * if true - perform an unlock transaction
+ *
+ * @param kioskCap KioskCap
+ * @param resultObj SuiObjectRef
+ * */
+function unlock(kioskCap, resultObj, gas = null) {
+  let tx = new TransactionBlock();
+  let capArg = tx.object(kioskCap.objectId);
+  let kioskArg = tx.object(kioskCap.kioskId);
+  let resultArg = tx.receivingObjectRef(resultObj.data);
+
+  tx.moveCall({
+    target: `${pkg}::the_game::unlock`,
+    arguments: [kioskArg, capArg, resultArg],
   });
 
   return signAndExecute(tx, gas);
@@ -570,9 +676,14 @@ async function signAndExecute(tx, gasObj = null) {
     },
   });
 
+  let changes = result.objectChanges
+    .filter((o) => 'AddressOwner' in o.owner)
+    .map(({ objectId, digest, version, objectType }) => ({ objectId, digest, version, objectType }));
+
   return {
     result,
     gas: result.effects.gasObject.reference,
+    changes,
   };
 }
 
@@ -637,24 +748,24 @@ async function getMatchStatus(extensionStorageId) {
 
   let value = data.content.fields.value;
 
-  // means that we're searching for a match but haven't found one yet
-  if (value.type.includes('::pool::Order')) {
-    return {
-      data: {
-        status: WAITING,
-        data: {
-          order: value.fields
-        }
-      },
-    };
-  }
-
   if (typeof value == "string" && value.startsWith("0x")) {
     return {
       data: {
         status: GUEST,
         data: {
           hostId: data.content.fields.value,
+        },
+      },
+    };
+  }
+
+  // means that we're searching for a match but haven't found one yet
+  if (value.type.includes("::pool::Order")) {
+    return {
+      data: {
+        status: WAITING,
+        data: {
+          order: value.fields,
         },
       },
     };

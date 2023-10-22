@@ -107,6 +107,7 @@ module game::the_game {
     struct Result has key {
         id: UID,
         has_won: bool,
+        host_kiosk: address,
         opponent_stats: Stats,
     }
 
@@ -207,6 +208,11 @@ module game::the_game {
     }
 
     /// Cancel the search for a match (if a match is still not found).
+    ///
+    /// Gas notes:
+    /// - dynamic field access + `TheGame` access can get expensive
+    /// - the `Order` is destroyed along with a dynamic field, so the gas is
+    /// expected to be negative
     entry fun cancel(
         game: &mut TheGame,
         kiosk: &mut Kiosk,
@@ -217,7 +223,7 @@ module game::the_game {
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
         assert!(has_player(kiosk), ENoPlayer);
-        assert!(bag::contains_with_type<MatchKey, Order>(storage(kiosk), MatchKey {}), ENotSearching);
+        assert!(is_searching(kiosk), ENotSearching);
 
         let pool_mut = pool_mut(game);
         let order = bag::remove(storage_mut(kiosk), MatchKey {});
@@ -228,6 +234,10 @@ module game::the_game {
     /// To join a Game the invited party needs to show an invite. To do so, the
     /// transfer-to-object (TTO) argument needs to be supplied as well as both
     /// kiosks (invitee and the host).
+    ///
+    /// Gas notes:
+    /// - the `Invite` covers the cost of joining
+    /// - expected to be a negative gas operation
     entry fun join(
         my_kiosk: &mut Kiosk,
         my_kiosk_cap: &KioskOwnerCap,
@@ -239,16 +249,15 @@ module game::the_game {
     ) {
         let my_id = id(my_kiosk);
         let destination = take_a_note(my_kiosk, my_kiosk_cap, invite);
+
         assert!(destination == id(host_kiosk), EWeDontKnowYou);
+        assert!(is_searching(my_kiosk), ENotInvited);
+        assert!(has_arena(host_kiosk), ENoArena);
 
         // so now we are "playing", we know where the other Kiosk is
         let my_storage = storage_mut(my_kiosk);
-        let is_waiting = bag::contains_with_type<MatchKey, bool>(my_storage, MatchKey {});
 
-        assert!(is_waiting, ENotInvited);
-        assert!(has_arena(host_kiosk), ENoArena);
-
-        bag::remove<MatchKey, bool>(my_storage, MatchKey {});
+        let _ = bag::remove<MatchKey, Order>(my_storage, MatchKey {});
         bag::add(my_storage, MatchKey {}, destination);
 
         let player = player(my_kiosk);
@@ -273,6 +282,9 @@ module game::the_game {
     /// - the game is over
     /// - (arena) if the player already committed
     /// - (arena) if the round is not over yet
+    ///
+    /// Gas notes:
+    /// - both players pay for the commit
     entry fun commit(
         host_kiosk: &mut Kiosk,
         cap: &KioskOwnerCap, // KOC is for the invitee's Kiosk or the host's
@@ -305,6 +317,9 @@ module game::the_game {
     /// - the game is over
     /// - (arena) if the player already revealed
     /// - (arena) if the round is not over yet
+    ///
+    /// Gas notes:
+    /// - both players pay for the reveal
     entry fun reveal(
         host_kiosk: &mut Kiosk,
         cap: &KioskOwnerCap,
@@ -324,10 +339,8 @@ module game::the_game {
         // TODO: pass the rng_seed to the Arena
         arena::reveal(arena, player_id, move_, salt, vector[ 0 ]);
 
+        // TODO: consider early exit or automatic wrap up
         let _is_over = arena::is_game_over(arena);
-
-        // TODO: there needs to be a wrap up / assignment function for when the
-        // game is over. both players will have to claim the results.
     }
 
     /// Destroy the arena, apply results of the Game and send them to the guest
@@ -335,6 +348,10 @@ module game::the_game {
     ///
     /// Emergency scenarios (TODO):
     /// - host is not responding
+    ///
+    /// Gas notes:
+    /// - host claims the rebate for the Arena
+    /// - host pays for sending the Result object to the guest
     entry fun wrapup(
         host_kiosk: &mut Kiosk,
         host_cap: &KioskOwnerCap,
@@ -349,18 +366,51 @@ module game::the_game {
 
         let winner_id = arena::winner(&arena);
         let (p1_stats, p2_stats) = arena::stats(&arena);
-        let p2_id = arena::p2_id(&arena);
+        let host_id = arena::p1_id(&arena);
+        let guest_id = arena::p2_id(&arena);
 
         // applies results to the host + sends results to the guest player
         if (winner_id == id(host_kiosk)) {
             apply_results(host_kiosk, true, p2_stats);
-            send_results(p2_id, false, *p1_stats, ctx);
+            send_results(guest_id, host_id, false, *p1_stats, ctx);
         } else {
             apply_results(host_kiosk, false, p2_stats);
-            send_results(p2_id, true, *p1_stats, ctx);
+            send_results(guest_id, host_id, true, *p1_stats, ctx);
         };
 
-        let _ = arena; // just a reminder that Arena has drop
+        let _ = arena; // just a reminder that Arena has `drop`
+    }
+
+    /// Claim the results of the game as a guest. This is the only way to
+    /// unlock the Kiosk and continue playing.
+    ///
+    /// Gas notes:
+    /// - host has already paid for the Result object
+    entry fun unlock(
+        guest_kiosk: &mut Kiosk,
+        guest_cap: &KioskOwnerCap,
+        // the transfer-to-object argument
+        result: Receiving<Result>,
+        _ctx: &mut TxContext
+    ) {
+        assert!(kiosk::has_access(guest_kiosk, guest_cap), ENotOwner);
+        assert!(is_playing(guest_kiosk), EPlayerIsPlaying);
+
+        let host_id = bag::remove(storage_mut(guest_kiosk), MatchKey {});
+        let Result {
+            id,
+            has_won,
+            opponent_stats,
+            host_kiosk
+        } = sui::transfer::receive(
+            kiosk::uid_mut_as_owner(guest_kiosk, guest_cap),
+            result
+        );
+
+        assert!(host_kiosk == host_id, EWeDontKnowYou);
+
+        apply_results(guest_kiosk, has_won, &opponent_stats);
+        object::delete(id);
     }
 
     // === Internal: Results ===
@@ -388,6 +438,7 @@ module game::the_game {
     /// playing the game.
     fun send_results(
         guest_kiosk: address,
+        host_kiosk: address,
         has_won: bool,
         opponent_stats: Stats,
         ctx: &mut TxContext
@@ -395,6 +446,7 @@ module game::the_game {
         transfer::transfer(Result {
             id: object::new(ctx),
             opponent_stats,
+            host_kiosk,
             has_won,
         }, guest_kiosk);
     }
@@ -414,7 +466,13 @@ module game::the_game {
     /// Aborts if there is no player.
     fun is_playing(kiosk: &Kiosk): bool {
         assert!(has_player(kiosk), ENoPlayer);
-        bag::contains(ext::storage(Game {}, kiosk), MatchKey {})
+        bag::contains(storage(kiosk), MatchKey {})
+    }
+
+    /// Check whether the player is currently searching for a match.
+    /// Aborts if there is no player.
+    fun is_searching(kiosk: &Kiosk): bool {
+        bag::contains_with_type<MatchKey, Order>(storage(kiosk), MatchKey {})
     }
 
     // === Internal Storage: The Game ===
