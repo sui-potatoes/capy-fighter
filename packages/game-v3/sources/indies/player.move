@@ -141,7 +141,7 @@ module game::player {
     /// Formula: =LEVEL^2 * 50 + 100
     public fun xp_for_level(_self: &Player, level: u8): u64 {
         let level = (level as u64);
-        (level * level * 50) + 100
+        (level * level * 50) + 300
     }
 
     // === Internal ===
