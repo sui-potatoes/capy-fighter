@@ -33,11 +33,11 @@ const HOST = "Host";
 // === Sui Devnet Environment ===
 
 const pkg =
-  "0x6424a1166c8cefc5d249359bba75905d93c123414e36ab2b2b05858a8bd79861";
+  "0x4feb2885ae048bc8f1b0a951e48fa3302e9fbc559456f727689eb32310c7834c";
 const theGame = {
   objectId:
-    "0x8d4d3aff6c27139ec368cf8e6818e84b783bbd1354c54c26d8ebeedd2d47b5e9",
-  initialSharedVersion: 72,
+    "0x3348fd7c5523219c315d69803c8db30b11d9b8a787d50699d93d0682aebb2b39",
+  initialSharedVersion: 73,
   mutable: true,
 };
 
@@ -265,7 +265,32 @@ async function play() {
       (o) => o.data.content.type == `${pkg}::the_game::Invite`
     );
     if (!invite) {
-      throw new Error("Still waiting for an invite! Wanna cancel?");
+      console.log('Still searching; do you want to cancel the search?');
+      let { cancel } = await inquirer.prompt([
+        {
+          type: "confirm",
+          name: "cancel",
+          prefix: ">",
+          message: "Cancel the search?",
+        },
+      ]);
+
+      if (cancel) {
+        let tx = new TransactionBlock();
+        let gameArg = tx.sharedObjectRef(theGame);
+        let kioskArg = tx.object(kioskIds[0]);
+        let capArg = tx.objectRef(kioskOwnerCaps[0]);
+
+        tx.moveCall({
+          target: `${pkg}::the_game::cancel`,
+          arguments: [gameArg, kioskArg, capArg],
+        });
+
+        let { result } = await signAndExecute(tx);
+        console.log("Match search cancelled!; %o", result.effects.status);
+      }
+
+      return;
     }
 
     let hostKiosk = invite.data.content.fields.kiosk;
@@ -615,9 +640,14 @@ async function getMatchStatus(extensionStorageId) {
   let value = data.content.fields.value;
 
   // means that we're searching for a match but haven't found one yet
-  if (value == false) {
+  if (value.type.includes('::pool::Order')) {
     return {
-      data: { status: WAITING },
+      data: {
+        status: WAITING,
+        data: {
+          order: value.fields
+        }
+      },
     };
   }
 

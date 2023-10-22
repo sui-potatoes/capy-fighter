@@ -26,9 +26,9 @@ module game::the_game {
 
     //
     use game::battle;
-    use game::pool::{Self, Pool};
     use game::arena::{Self, Arena};
     use game::player::{Self, Player};
+    use game::pool::{Self, Order, Pool};
 
     /// An extension is not installed and the user is trying to create a new player.
     const EExtensionNotInstalled: u64 = 0;
@@ -54,6 +54,8 @@ module game::the_game {
     const EWeDontKnowYou: u64 = 9;
     /// The user is trying to play, but the version is not supported (or legacy).
     const EInvalidVersion: u64 = 10;
+    /// Trying to cancel the search, but there's no search.
+    const ENotSearching: u64 = 12;
 
     // === The main object ===
 
@@ -138,7 +140,7 @@ module game::the_game {
     // - [+] create a new player (drop a player) // currently there can be only 1P
     // - [+] search for a game
     // - [+] play the game
-    // - calculate the results
+    // - [+] calculate the results
     // - update Player ratings
     // - repeat
 
@@ -181,12 +183,10 @@ module game::the_game {
         let (my_id, level, tolerance) = order(kiosk);
         let pool_mut = pool_mut(game);
 
-        pool::submit_order(pool_mut, my_id, level, tolerance);
-
-        let match = pool::find_match(pool_mut, my_id, level, tolerance);
+        let order = pool::submit_order(pool_mut, my_id, level, tolerance);
+        let match = pool::find_match(pool_mut, &order);
         if (option::is_none(&match)) {
-            // bool would mean that we're waiting for a match
-            bag::add(storage_mut(kiosk), MatchKey {}, false);
+            bag::add(storage_mut(kiosk), MatchKey {}, order);
             return
         };
 
@@ -208,6 +208,25 @@ module game::the_game {
 
         // lastly, attach the Arena to another player's Kiosk
         bag::add(storage_mut(kiosk), MatchKey {}, arena)
+    }
+
+    /// Cancel the search for a match (if a match is still not found).
+    entry fun cancel(
+        game: &mut TheGame,
+        kiosk: &mut Kiosk,
+        cap: &KioskOwnerCap,
+        _ctx: &mut TxContext
+    ) {
+        assert!(game.version == VERSION, EInvalidVersion);
+        assert!(kiosk::has_access(kiosk, cap), ENotOwner);
+        assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
+        assert!(has_player(kiosk), ENoPlayer);
+        assert!(bag::contains_with_type<MatchKey, Order>(storage(kiosk), MatchKey {}), ENotSearching);
+
+        let pool_mut = pool_mut(game);
+        let order = bag::remove(storage_mut(kiosk), MatchKey {});
+
+        pool::revoke_order(pool_mut, order)
     }
 
     /// To join a Game the invited party needs to show an invite. To do so, the
