@@ -12,8 +12,8 @@ dependencies:
     specifier: ^0.7.1
     version: 0.7.1
   '@mysten/sui.js':
-    specifier: ^0.43.0
-    version: 0.43.0
+    specifier: link:../../sui/sdk/typescript
+    version: link:../../sui/sdk/typescript
   blake2b:
     specifier: ^2.1.4
     version: 2.1.4

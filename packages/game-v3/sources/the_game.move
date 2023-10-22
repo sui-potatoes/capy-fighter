@@ -47,7 +47,7 @@ module game::the_game {
     /// Emitted when the game is over.
     const EGameOver: u64 = 7;
     /// For when the user is not invited to this Host.
-    const ENotInvited: u64 = 20;
+    const ENotInvited: u64 = 11;
     /// The user is trying to play, but the player is banned.
     const EPlayerIsBanned: u64 = 6;
     /// The user is trying to join, but the invite is not for them.
@@ -216,7 +216,7 @@ module game::the_game {
     entry fun join(
         my_kiosk: &mut Kiosk,
         my_kiosk_cap: &KioskOwnerCap,
-        other_kiosk: &mut Kiosk,
+        host_kiosk: &mut Kiosk,
 
         // the transfer-to-object argument
         invite: Receiving<Invite>,
@@ -224,14 +224,14 @@ module game::the_game {
     ) {
         let my_id = id(my_kiosk);
         let destination = take_a_note(my_kiosk, my_kiosk_cap, invite);
-        assert!(destination == id(other_kiosk), EWeDontKnowYou);
+        assert!(destination == id(host_kiosk), EWeDontKnowYou);
 
         // so now we are "playing", we know where the other Kiosk is
         let my_storage = storage_mut(my_kiosk);
-        let is_waiting = bag::contains_with_type<MatchKey, address>(my_storage, MatchKey {});
+        let is_waiting = bag::contains_with_type<MatchKey, bool>(my_storage, MatchKey {});
 
         assert!(is_waiting, ENotInvited);
-        assert!(has_arena(other_kiosk), ENoArena);
+        assert!(has_arena(host_kiosk), ENoArena);
 
         bag::remove<MatchKey, bool>(my_storage, MatchKey {});
         bag::add(my_storage, MatchKey {}, destination);
@@ -239,7 +239,7 @@ module game::the_game {
         let player = player(my_kiosk);
         let stats = *player::stats(player);
         let moves = player::moves(player);
-        let arena = arena_mut(other_kiosk);
+        let arena = arena_mut(host_kiosk);
 
         arena::join(arena, stats, moves, my_id);
     }

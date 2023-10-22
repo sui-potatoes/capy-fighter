@@ -255,7 +255,6 @@ module game::arena {
         let p1_move = option::extract(&mut p1.next_move);
         let p2_move = option::extract(&mut p2.next_move);
 
-
         // IN YOUR FACE ;)
         let (dmg, eff, stab) = battle::attack(
             &p1.stats, &mut p2.stats, (p1_move as u64), 255
@@ -290,6 +289,8 @@ module game::arena {
             self.history = history;
             return
         };
+
+        self.history = history;
     }
 
     /// Internal: util to create a new player
