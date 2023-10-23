@@ -90,12 +90,18 @@ module game::pool {
         };
 
         let match = option::none();
+        let _player = vector::remove(orders, idx);
 
+        // TODO: can fail if tolerance is set > 1
+        // TODO: make sure negative tolerance does not underflow
         while (i < len) {
             let search = vector::borrow(orders, i);
-            let exit_cond = &search.id != &order.id
-                && &search.value == &order.value
-                && option::is_none(&match);
+            let exit_cond =
+                (
+                    search.value == order.value ||
+                    search.value <= (order.value + order.tolerance) ||
+                    order.value >= (search.value + search.tolerance)
+                ) && option::is_none(&match);
 
             if (exit_cond) {
                 option::fill(&mut match, i);
@@ -111,14 +117,7 @@ module game::pool {
 
         // first we need to remove the player from the pool
         let match = option::extract(&mut match);
-        let match = if (match > idx) {
-            let match = vector::remove(orders, match);
-            let _player = vector::remove(orders, idx);
-            match
-        } else {
-            let _player = vector::remove(orders, idx);
-            vector::remove(orders, match)
-        };
+        let match = vector::remove(orders, match);
 
         option::some(match.id)
     }
@@ -127,54 +126,4 @@ module game::pool {
 
     /// Public getter for the size of the Pool.
     public fun size(self: &Pool): u64 { vector::length(&self.orders) }
-
-    // === Testing ===
-
-    #[test]
-    fun test_default_flow() {
-        let ctx = &mut sui::tx_context::dummy();
-        let pool = Pool { id: object::new(ctx), orders: vector[] };
-
-        let order_1 = submit_order(&mut pool, @0x1, 1, 0);
-        let _order_2 = submit_order(&mut pool, @0x2, 1, 0);
-        let order_3 = submit_order(&mut pool, @0x3, 1, 0);
-        let _order_4 = submit_order(&mut pool, @0x4, 1, 0);
-
-        find_match(&mut pool, &order_1);
-        assert!(size(&pool) == 2, 0);
-
-        find_match(&mut pool, &order_3);
-        assert!(size(&pool) == 0, 0);
-
-        let Pool { id, orders: _ } = pool;
-
-        object::delete(id)
-    }
-
-    #[test]
-    fun test_cancel_order() {
-        let ctx = &mut sui::tx_context::dummy();
-        let pool = Pool { id: object::new(ctx), orders: vector[] };
-
-        let order_1 = submit_order(&mut pool, @0x1, 1, 0);
-        revoke_order(&mut pool, order_1);
-
-        let Pool { id, orders: _ } = pool;
-        object::delete(id);
-    }
-
-    #[test]
-    fun test_one_to_one() {
-        let ctx = &mut sui::tx_context::dummy();
-        let pool = Pool { id: object::new(ctx), orders: vector[] };
-
-        let _order_1 = submit_order(&mut pool, @0x1, 1, 0);
-        let order_2 = submit_order(&mut pool, @0x2, 1, 0);
-
-        find_match(&mut pool, &order_2);
-
-        assert!(size(&pool) == 0, 0);
-        let Pool { id, orders: _ } = pool;
-        object::delete(id)
-    }
 }

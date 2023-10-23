@@ -33,11 +33,11 @@ const HOST = "Host";
 // === Sui Devnet Environment ===
 
 const pkg =
-  "0x6a321654b5e45d365eb48fe7ad06ce6ac7ed8204e712e92f8960946c0bb1d672";
+  "0x1f738d99012f66dd72e3573172999f4a1a3122711c70b86724e6a97cb38389cd";
 const theGame = {
   objectId:
-    "0xadd17d2578d7ae782a4d4f32ec6efa67e68eaeb7d8b98358309651fb7a0b477f",
-  initialSharedVersion: 75,
+    "0x81bc085616b88dc4089b2a250a3138bccf42964dadcf68afb2c412979b568863",
+  initialSharedVersion: 76,
   mutable: true,
 };
 
@@ -63,6 +63,62 @@ const keys = [
 const myKey = keys[process.env.KEY || 0];
 const keypair = Ed25519Keypair.fromSecretKey(fromB64(myKey.privateKey));
 const address = keypair.toSuiAddress();
+
+/** Keep track of shared objects to reuse them during execution */
+class ObjectVersionTracker {
+  constructor() {
+    this.objects = {};
+  }
+
+  async getShared(id) {
+    if (this.objects[id]) {
+      return this.objects[id];
+    }
+
+    let obj = await client.getObject({ id, options: { showOwner: true } });
+    let mutable = id == "0x6" ? false : true;
+
+    this.objects[id] = {
+      objectId: id,
+      initialSharedVersion: obj.data.owner.Shared.initial_shared_version,
+      mutable,
+    };
+
+    return this.objects[id];
+  }
+
+  async addShared({ objectId, initialSharedVersion }) {
+    this.objects[objectId] = { objectId, initialSharedVersion, mutable: true };
+    return this.objects[objectId];
+  }
+
+  async get(id) {
+    if (this.objects[id]) {
+      return this.objects[id];
+    }
+
+    let obj = await client.getObject({ id });
+    this.objects[id] = {
+      objectId: id,
+      version: obj.data.version,
+      digest: obj.data.digest,
+    };
+    return this.objects[id];
+  }
+
+  async add({ objectId, version, digest }) {
+    this.objects[objectId] = { objectId, version, digest };
+    return this.objects[objectId];
+  }
+
+  async registerChanges(changes) {
+    Object.keys(changes).forEach((key) => {
+      this.objects[key] = changes[key];
+    });
+  }
+}
+
+const refs = new ObjectVersionTracker();
 
 // === CLI Bits ===
 
@@ -117,8 +173,8 @@ async function newAccount() {
     }
 
     let tx = new TransactionBlock();
-    let cap = tx.objectRef(kioskOwnerCaps[0]);
-    let kioskArg = tx.object(kioskIds[0]);
+    let cap = tx.objectRef(await refs.add(kioskOwnerCaps[0]));
+    let kioskArg = tx.sharedObjectRef(await refs.getShared(kioskIds[0]));
 
     tx.moveCall({
       target: `${pkg}::the_game::install`,
@@ -148,11 +204,13 @@ async function newAccount() {
   tx = new TransactionBlock();
 
   let kiosk = result.effects.created.find((e) => "Shared" in e.owner);
-  let kioskArg = tx.sharedObjectRef({
-    objectId: kiosk.reference.objectId,
-    initialSharedVersion: kiosk.owner.Shared.initial_shared_version,
-    mutable: true,
-  });
+  let kioskArg = tx.sharedObjectRef(
+    sharedRefs.addRef({
+      objectId: kiosk.reference.objectId,
+      initialSharedVersion: kiosk.owner.Shared.initial_shared_version,
+      mutable: true,
+    })
+  );
 
   let capRef = result.effects.created.find(
     (e) => "AddressOwner" in e.owner
@@ -205,10 +263,13 @@ async function newPlayer() {
 
   let type = await chooseType();
   let tx = new TransactionBlock();
+  let kioskArg = tx.sharedObjectRef(await refs.getShared(kioskId));
+  let capArg = tx.objectRef(await refs.add(cap));
+  let typeArg = tx.pure.u8(type);
 
   tx.moveCall({
     target: `${pkg}::the_game::new_player`,
-    arguments: [tx.object(kioskId), tx.objectRef(cap), tx.pure.u8(type)],
+    arguments: [kioskArg, capArg, typeArg],
   });
 
   let { result } = await signAndExecute(tx);
@@ -245,17 +306,23 @@ async function getStats() {
   }
 
   let player = stripFields(playerData.content.fields.value);
-  console.log(JSON.stringify({
-    ["Wins / Losses"]: `${player.wins} / ${player.losses}`,
-    ["Level (XP)"]: `${player.stats.level} (${player.xp})`,
-    ["Max HP"]: formatHP(player.stats.max_hp),
-    ["Attack"]: player.stats.attack,
-    ["Defense"]: player.stats.defense,
-    ["Speed"]: player.stats.speed,
-    ["Type"]: typesDefinitions()[player.stats.types[0]].name,
-    ["Moves"]: player.moves.map((id) => movesDefinitions()[id].name),
-    ["Banned"]: !!player.banned_until,
-  }, null, 4));
+  console.log(
+    JSON.stringify(
+      {
+        ["Wins / Losses"]: `${player.wins} / ${player.losses}`,
+        ["Level (XP)"]: `${player.stats.level} (${player.xp})`,
+        ["Max HP"]: formatHP(player.stats.max_hp),
+        ["Attack"]: player.stats.attack,
+        ["Defense"]: player.stats.defense,
+        ["Speed"]: player.stats.speed,
+        ["Type"]: typesDefinitions()[player.stats.types[0]].name,
+        ["Moves"]: player.moves.map((id) => movesDefinitions()[id].name),
+        ["Banned"]: !!player.banned_until,
+      },
+      null,
+      4
+    )
+  );
 }
 
 /**
@@ -308,41 +375,23 @@ async function play() {
       (o) => o.data.content.type == `${pkg}::the_game::Invite`
     );
     if (!invite) {
-      console.log("Still searching; do you want to cancel the search?");
-      let { cancel } = await inquirer.prompt([
-        {
-          type: "confirm",
-          name: "cancel",
-          prefix: ">",
-          message: "Cancel the search?",
-        },
-      ]);
+      console.log("Still searching; press `CTRL + C` to cancel");
 
-      if (cancel) {
-        let tx = new TransactionBlock();
-        let gameArg = tx.sharedObjectRef(theGame);
-        let kioskArg = tx.object(kioskIds[0]);
-        let capArg = tx.objectRef(kioskOwnerCaps[0]);
+      let cb = cancel.bind(null, kioskOwnerCaps[0]);
+      process.on('SIGINT', cb);
 
-        tx.moveCall({
-          target: `${pkg}::the_game::cancel`,
-          arguments: [gameArg, kioskArg, capArg],
-        });
-
-        let { result } = await signAndExecute(tx);
-        console.log("Match search cancelled!; %o", result.effects.status);
-      }
-
-      return;
+      await wait(WAIT_TIME);
+      process.off('SIGINT', cb);
+      return play();
     }
 
     let hostKiosk = invite.data.content.fields.kiosk;
 
     /* construct arguments (including the Receiving Ref!) */
     let tx = new TransactionBlock();
-    let myKiosk = tx.object(kioskIds[0]);
-    let capArg = tx.objectRef(kioskOwnerCaps[0]);
-    let hostKioskArg = tx.object(hostKiosk);
+    let myKiosk = tx.sharedObjectRef(await refs.getShared(kioskIds[0]));
+    let capArg = tx.objectRef(await refs.add(kioskOwnerCaps[0]));
+    let hostKioskArg = tx.sharedObjectRef(await refs.getShared(hostKiosk));
     let inviteArg = tx.receivingObjectRef(invite.data);
 
     tx.moveCall({
@@ -401,8 +450,8 @@ async function play() {
   }
 
   let tx = new TransactionBlock();
-  let cap = tx.objectRef(kioskOwnerCaps[0]);
-  let kioskArg = tx.object(kioskIds[0]);
+  let cap = tx.objectRef(await refs.add(kioskOwnerCaps[0]));
+  let kioskArg = tx.sharedObjectRef(await refs.getShared(kioskIds[0]));
   let matchArg = tx.sharedObjectRef(theGame);
 
   tx.moveCall({
@@ -412,6 +461,10 @@ async function play() {
 
   let { result } = await signAndExecute(tx);
   console.log("Match search started!; %o", result.effects.status);
+  console.log("CTRL + C to cancel the search");
+
+  await wait(WAIT_TIME);
+  return play();
 }
 
 async function listenAndPlay(
@@ -420,7 +473,7 @@ async function listenAndPlay(
   kioskCap,
   player = "p1",
   move = null,
-  reuseGasObj = null,
+  reuseGasObj = null
 ) {
   let { data, error } = await getMatchStatus(extensionStorageId);
 
@@ -430,11 +483,14 @@ async function listenAndPlay(
   if (error) {
     let resultObj = await getResult(kioskCap);
     if (resultObj) {
-      console.log("Battle has ended; but you haven't confirmed the result yet!");
+      console.log(
+        "Battle has ended; but you haven't confirmed the result yet!"
+      );
       let { result } = await unlock(kioskCap, resultObj, reuseGasObj);
       console.log(
-        "Match concluded! You can play again; %o",
-        result.effects.status
+        "Match concluded! You %s; Play again? %o",
+        result.effects.status,
+        stripFields(resultObj.data.content.fields).has_won ? "Won" : "Lost"
       );
       return process.exit(0);
     }
@@ -442,18 +498,12 @@ async function listenAndPlay(
     throw new Error(`Could not fetch match status: ${error}; Unknown error`);
   }
 
+  let other = player == "p1" ? "p2" : "p1";
   let { status, battle, action } = data;
 
   if (status !== HOST || !battle) {
     throw new Error("There's no match happening or inputs are incorrect");
   }
-
-  console.log(
-    "Current battle history is: %o",
-    battle.history.map((hit) => stripFields(hit))
-  );
-
-  let other = player == "p1" ? "p2" : "p1";
 
   switch (true) {
     // Waiting for the P2 to join
@@ -481,6 +531,13 @@ async function listenAndPlay(
       action = "wait";
   }
 
+  if (action != "wait") {
+    let meStrikeFirst = battle[player].stats.speed > battle[other].stats.speed;
+    let history = formatHistory(battle.history, meStrikeFirst);
+
+    console.table(history);
+  }
+
   if (action == "commit") {
     let myTypeIdx = battle[player].stats.types[0];
     let myType = typesDefinitions()[myTypeIdx];
@@ -503,11 +560,24 @@ async function listenAndPlay(
 
     let salt = [1, 2, 3, 4];
     let move = await chooseMove(battle[player].moves);
-    let { result, gas } = await commit(hostId, kioskCap.objectId, move, salt, reuseGasObj);
+    let { result, gas } = await commit(
+      hostId,
+      kioskCap.objectId,
+      move,
+      salt,
+      reuseGasObj
+    );
 
     console.log("Committed!", result.effects.status);
 
-    return listenAndPlay(hostId, extensionStorageId, kioskCap, player, move, gas);
+    return listenAndPlay(
+      hostId,
+      extensionStorageId,
+      kioskCap,
+      player,
+      move,
+      gas
+    );
   }
 
   if (action == "reveal") {
@@ -518,11 +588,24 @@ async function listenAndPlay(
     }
 
     let salt = [1, 2, 3, 4];
-    let { result, gas } = await reveal(hostId, kioskCap.objectId, move, salt, reuseGasObj);
+    let { result, gas } = await reveal(
+      hostId,
+      kioskCap.objectId,
+      move,
+      salt,
+      reuseGasObj
+    );
 
     console.log("Revealed!", result.effects.status);
 
-    return listenAndPlay(hostId, extensionStorageId, kioskCap, player, move, gas);
+    return listenAndPlay(
+      hostId,
+      extensionStorageId,
+      kioskCap,
+      player,
+      move,
+      gas
+    );
   }
 
   if (action == "end" && player == "p2") {
@@ -553,7 +636,14 @@ async function listenAndPlay(
 
   if (action == "wait") {
     await wait(WAIT_TIME);
-    return listenAndPlay(hostId, extensionStorageId, kioskCap, player, move, reuseGasObj);
+    return listenAndPlay(
+      hostId,
+      extensionStorageId,
+      kioskCap,
+      player,
+      move,
+      reuseGasObj
+    );
   }
 
   return console.log(
@@ -565,20 +655,36 @@ async function listenAndPlay(
 
 // === Transactions ===
 
+/** Cancel search for a match */
+async function cancel(kioskCap) {
+  let tx = new TransactionBlock();
+  let gameArg = tx.sharedObjectRef(theGame);
+  let kioskArg = tx.sharedObjectRef(await refs.getShared(kioskCap.kioskId));
+  let capArg = tx.objectRef(await refs.add(kioskCap));
+
+  tx.moveCall({
+    target: `${pkg}::the_game::cancel`,
+    arguments: [gameArg, kioskArg, capArg],
+  });
+
+  let { result } = await signAndExecute(tx);
+  console.log("Match search cancelled!; %o", result.effects.status);
+  process.exit(0);
+}
+
 /** Submit a commitment with an attack */
-function commit(hostId, capId, move, salt, gas = null) {
+async function commit(hostId, capId, move, salt, gas = null) {
   let data = new Uint8Array([move, 1, 2, 3, 4]);
   let hash = Array.from(blake2b(32).update(data).digest());
-
   let tx = new TransactionBlock();
 
   tx.moveCall({
     target: `${pkg}::the_game::commit`,
     arguments: [
-      tx.object(hostId),
-      tx.object(capId),
+      tx.sharedObjectRef(await refs.getShared(hostId)),
+      tx.objectRef(await refs.get(capId)),
       tx.pure(bcs.vector(bcs.u8()).serialize(hash).toBytes()),
-      tx.object("0x6"), // clock
+      tx.sharedObjectRef(await refs.getShared("0x6")), // clock
     ],
   });
 
@@ -586,17 +692,17 @@ function commit(hostId, capId, move, salt, gas = null) {
 }
 
 /** Reveal the commitment by providing the Move and Salt */
-function reveal(hostId, capId, move, salt, gas = null) {
+async function reveal(hostId, capId, move, salt, gas = null) {
   let tx = new TransactionBlock();
 
   tx.moveCall({
     target: `${pkg}::the_game::reveal`,
     arguments: [
-      tx.object(hostId),
-      tx.object(capId),
+      tx.sharedObjectRef(await refs.getShared(hostId)),
+      tx.objectRef(await refs.get(capId)),
       tx.pure.u8(move),
       tx.pure(bcs.vector(bcs.u8()).serialize(salt).toBytes()),
-      tx.object("0x6"), // clock
+      tx.sharedObjectRef(await refs.getShared("0x6")), // clock
     ],
   });
 
@@ -604,10 +710,10 @@ function reveal(hostId, capId, move, salt, gas = null) {
 }
 
 /** P1 performs a cleanup */
-function wrapup(hostId, capId, gas = null) {
+async function wrapup(hostId, capId, gas = null) {
   let tx = new TransactionBlock();
-  let capArg = tx.object(capId);
-  let kioskArg = tx.object(hostId);
+  let capArg = tx.objectRef(await refs.get(capId));
+  let kioskArg = tx.sharedObjectRef(await refs.getShared(hostId));
 
   tx.moveCall({
     target: `${pkg}::the_game::wrapup`,
@@ -638,10 +744,10 @@ async function getResult(kioskCap) {
  * @param kioskCap KioskCap
  * @param resultObj SuiObjectRef
  * */
-function unlock(kioskCap, resultObj, gas = null) {
+async function unlock(kioskCap, resultObj, gas = null) {
   let tx = new TransactionBlock();
-  let capArg = tx.object(kioskCap.objectId);
-  let kioskArg = tx.object(kioskCap.kioskId);
+  let capArg = tx.objectRef(await refs.get(kioskCap.objectId));
+  let kioskArg = tx.sharedObjectRef(await refs.getShared(kioskCap.kioskId));
   let resultArg = tx.receivingObjectRef(resultObj.data);
 
   tx.moveCall({
@@ -654,8 +760,28 @@ function unlock(kioskCap, resultObj, gas = null) {
 
 // === Fetching and Listening ===
 
+/** Format HP so it looks better (and DMG) */
 function formatHP(hp) {
   return +(hp / 100000000).toFixed(2);
+}
+
+/** Format for better output */
+function formatHistory(history, meStrikeFirst) {
+  return history
+    .map((hit) => stripFields(hit))
+    .map(({ damage, effectiveness, move_, stab }, i) => {
+      let isMine =
+        (meStrikeFirst && i % 2 == 0) || (!meStrikeFirst && i % 2 == 1);
+      let move = movesDefinitions()[move_];
+      return {
+        player: isMine ? "Me" : "Opponent",
+        round: Math.floor(i / 2) + 1,
+        damage: formatHP(damage),
+        effectiveness: 10 / effectiveness,
+        move: `${move.name} (${move.power})`,
+        stab,
+      };
+    });
 }
 
 /** Sign the TransactionBlock and send the tx to the network */
@@ -677,8 +803,17 @@ async function signAndExecute(tx, gasObj = null) {
   });
 
   let changes = result.objectChanges
-    .filter((o) => 'AddressOwner' in o.owner)
-    .map(({ objectId, digest, version, objectType }) => ({ objectId, digest, version, objectType }));
+    .filter((o) => "AddressOwner" in o.owner)
+    .map(({ objectId, digest, version, objectType }) => ({
+      objectId,
+      digest,
+      version,
+      objectType,
+    }))
+    .reduce((acc, v) => ({ ...acc, [v.objectId]: { ...v } }), {});
+
+  // TODO: make it less dirty!!!
+  refs.registerChanges(changes);
 
   return {
     result,

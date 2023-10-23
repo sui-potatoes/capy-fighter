@@ -26,8 +26,8 @@ module game::the_game {
 
     use game::battle;
     use game::arena::{Self, Arena};
-    use game::player::{Self, Player};
     use game::pool::{Self, Order, Pool};
+    use game::character::{Self as char, Character};
 
     /// An extension is not installed and the user is trying to create a new player.
     const EExtensionNotInstalled: u64 = 0;
@@ -79,7 +79,7 @@ module game::the_game {
     // === Dynamic Field Keys ===
 
     /// The Dynamic Field Key for the Player.
-    struct PlayerKey has store, copy, drop {}
+    struct CharacterKey has store, copy, drop {}
 
     /// The Dynamic Field Key for an active Match in the Arena. Whenever present
     /// it either points to a Kiosk that has a match running or stores an actual
@@ -156,9 +156,9 @@ module game::the_game {
         // TODO: better randomness
         let moves = battle::starter_moves(type);
         let rand_source = bcs::to_bytes(&tx_context::fresh_object_address(ctx));
-        let player = player::new(type, moves, rand_source, ctx);
+        let player = char::new(type, moves, rand_source, ctx);
 
-        bag::add(storage_mut(kiosk), PlayerKey {}, player)
+        bag::add(storage_mut(kiosk), CharacterKey {}, player)
     }
 
     // === Matchmaking ===
@@ -191,15 +191,15 @@ module game::the_game {
         let match = option::destroy_some(match);
         let (arena, player) = (arena::new(), player(kiosk));
 
-        assert!(!player::is_banned(player), EPlayerIsBanned);
+        assert!(!char::is_banned(player), EPlayerIsBanned);
 
         // be nice and leave a note for the other player
         send_an_invite(my_id, match, ctx);
 
         arena::join(
             &mut arena,
-            *player::stats(player),
-            player::moves(player),
+            *char::stats(player),
+            char::moves(player),
             my_id
         );
 
@@ -261,8 +261,8 @@ module game::the_game {
         bag::add(my_storage, MatchKey {}, destination);
 
         let player = player(my_kiosk);
-        let stats = *player::stats(player);
-        let moves = player::moves(player);
+        let stats = *char::stats(player);
+        let moves = char::moves(player);
         let arena = arena_mut(host_kiosk);
 
         arena::join(arena, stats, moves, my_id);
@@ -326,7 +326,7 @@ module game::the_game {
         move_: u8,
         salt: vector<u8>,
         _clock: &Clock,
-        _ctx: &mut TxContext
+        ctx: &mut TxContext
     ) {
         assert!(has_arena(host_kiosk), ENoArena);
 
@@ -340,7 +340,10 @@ module game::the_game {
         arena::reveal(arena, player_id, move_, salt, vector[ 0 ]);
 
         // TODO: consider early exit or automatic wrap up
-        let _is_over = arena::is_game_over(arena);
+        let is_over = arena::is_game_over(arena);
+        if (is_over && kiosk::has_access(host_kiosk, cap)) {
+            wrapup(host_kiosk, cap, ctx);
+        }
     }
 
     /// Destroy the arena, apply results of the Game and send them to the guest
@@ -421,15 +424,15 @@ module game::the_game {
         has_won: bool,
         opponent_stats: &Stats
     ) {
-        let player_mut = player_mut(kiosk);
-        let xp = player::xp_for_level(player_mut, stats::level(opponent_stats));
+        let char_mut = char_mut(kiosk);
+        let xp = char::xp_for_level(char_mut, stats::level(opponent_stats));
 
         if (has_won) {
-            player::add_win(player_mut);
-            player::add_xp(player_mut, xp);
+            char::add_win(char_mut);
+            char::add_xp(char_mut, xp);
         } else {
-            player::add_loss(player_mut);
-            player::add_xp(player_mut, xp / 5);
+            char::add_loss(char_mut);
+            char::add_xp(char_mut, xp / 5);
         }
     }
 
@@ -459,7 +462,7 @@ module game::the_game {
     /// Check if the Kiosk has a player.
     fun has_player(kiosk: &Kiosk): bool {
         ext::is_installed<Game>(kiosk)
-            && bag::contains(ext::storage(Game {}, kiosk), PlayerKey {})
+            && bag::contains(ext::storage(Game {}, kiosk), CharacterKey {})
     }
 
     /// Check whether the player is currently playing.
@@ -540,21 +543,21 @@ module game::the_game {
         kiosk
     }
 
-    /// Get a reference to the `Player` struct stored in the Extension.
-    fun player(kiosk: &Kiosk): &Player {
-        bag::borrow(ext::storage(Game {}, kiosk), PlayerKey {})
+    /// Get a reference to the `Character` struct stored in the Extension.
+    fun player(kiosk: &Kiosk): &Character {
+        bag::borrow(ext::storage(Game {}, kiosk), CharacterKey {})
     }
 
-    /// Get a mutable reference to the `Player` struct stored in the Extension.
-    fun player_mut(kiosk: &mut Kiosk): &mut Player {
-        bag::borrow_mut(ext::storage_mut(Game {}, kiosk), PlayerKey {})
+    /// Get a mutable reference to the `Character` struct stored in the Extension.
+    fun char_mut(kiosk: &mut Kiosk): &mut Character {
+        bag::borrow_mut(ext::storage_mut(Game {}, kiosk), CharacterKey {})
     }
 
     /// Prepare the data to place an order for the current player.
     fun order(kiosk: &Kiosk): (address, u8, u8) {
         (
             object::id_to_address(&object::id(kiosk)),
-            stats::level(player::stats(player(kiosk))),
+            stats::level(char::stats(player(kiosk))),
             0
         )
     }
