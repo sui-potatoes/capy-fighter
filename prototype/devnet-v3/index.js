@@ -205,7 +205,7 @@ async function newAccount() {
 
   let kiosk = result.effects.created.find((e) => "Shared" in e.owner);
   let kioskArg = tx.sharedObjectRef(
-    sharedRefs.addRef({
+    refs.addRef({
       objectId: kiosk.reference.objectId,
       initialSharedVersion: kiosk.owner.Shared.initial_shared_version,
       mutable: true,
@@ -392,7 +392,7 @@ async function play() {
     let myKiosk = tx.sharedObjectRef(await refs.getShared(kioskIds[0]));
     let capArg = tx.objectRef(await refs.add(kioskOwnerCaps[0]));
     let hostKioskArg = tx.sharedObjectRef(await refs.getShared(hostKiosk));
-    let inviteArg = tx.receivingObjectRef(invite.data);
+    let inviteArg = tx.receivingRef(invite.data);
 
     tx.moveCall({
       target: `${pkg}::the_game::join`,
@@ -748,7 +748,7 @@ async function unlock(kioskCap, resultObj, gas = null) {
   let tx = new TransactionBlock();
   let capArg = tx.objectRef(await refs.get(kioskCap.objectId));
   let kioskArg = tx.sharedObjectRef(await refs.getShared(kioskCap.kioskId));
-  let resultArg = tx.receivingObjectRef(resultObj.data);
+  let resultArg = tx.receivingRef(resultObj.data);
 
   tx.moveCall({
     target: `${pkg}::the_game::unlock`,

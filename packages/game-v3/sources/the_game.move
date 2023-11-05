@@ -142,7 +142,7 @@ module game::the_game {
     // === The Game Itself ===
 
     /// Currently there can be only one player!
-    entry fun new_player(
+    entry fun new_character(
         kiosk: &mut Kiosk,
         cap: &KioskOwnerCap,
         type: u8,
@@ -151,7 +151,7 @@ module game::the_game {
         assert!(type < 4, EInvalidUserType);
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
-        assert!(!has_player(kiosk), EPlayerAlreadyExists);
+        assert!(!has_character(kiosk), EPlayerAlreadyExists);
 
         // TODO: better randomness
         let moves = battle::starter_moves(type);
@@ -174,7 +174,7 @@ module game::the_game {
         assert!(game.version == VERSION, EInvalidVersion);
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
-        assert!(has_player(kiosk), ENoPlayer);
+        assert!(has_character(kiosk), ENoPlayer);
         assert!(!is_playing(kiosk), EPlayerIsPlaying);
 
         let (my_id, level, tolerance) = order(kiosk);
@@ -189,7 +189,7 @@ module game::the_game {
 
         // the other player matched with us
         let match = option::destroy_some(match);
-        let (arena, player) = (arena::new(), player(kiosk));
+        let (arena, player) = (arena::new(), character(kiosk));
 
         assert!(!char::is_banned(player), EPlayerIsBanned);
 
@@ -222,7 +222,7 @@ module game::the_game {
         assert!(game.version == VERSION, EInvalidVersion);
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
-        assert!(has_player(kiosk), ENoPlayer);
+        assert!(has_character(kiosk), ENoPlayer);
         assert!(is_searching(kiosk), ENotSearching);
 
         let pool_mut = pool_mut(game);
@@ -260,7 +260,7 @@ module game::the_game {
         let _ = bag::remove<MatchKey, Order>(my_storage, MatchKey {});
         bag::add(my_storage, MatchKey {}, destination);
 
-        let player = player(my_kiosk);
+        let player = character(my_kiosk);
         let stats = *char::stats(player);
         let moves = char::moves(player);
         let arena = arena_mut(host_kiosk);
@@ -297,7 +297,7 @@ module game::the_game {
         let arena = arena_mut(host_kiosk);
         let player_id = id_from_cap(cap);
 
-        assert!(arena::has_player(arena, player_id), EWeDontKnowYou);
+        assert!(arena::has_character(arena, player_id), EWeDontKnowYou);
         assert!(!arena::is_game_over(arena), EGameOver);
 
         arena::commit(arena, player_id, commitment)
@@ -333,7 +333,7 @@ module game::the_game {
         let arena = arena_mut(host_kiosk);
         let player_id = id_from_cap(cap);
 
-        assert!(arena::has_player(arena, player_id), EWeDontKnowYou);
+        assert!(arena::has_character(arena, player_id), EWeDontKnowYou);
         assert!(!arena::is_game_over(arena), EGameOver);
 
         // TODO: pass the rng_seed to the Arena
@@ -460,7 +460,7 @@ module game::the_game {
     // === Internal Reads ===
 
     /// Check if the Kiosk has a player.
-    fun has_player(kiosk: &Kiosk): bool {
+    fun has_character(kiosk: &Kiosk): bool {
         ext::is_installed<Game>(kiosk)
             && bag::contains(ext::storage(Game {}, kiosk), CharacterKey {})
     }
@@ -468,7 +468,7 @@ module game::the_game {
     /// Check whether the player is currently playing.
     /// Aborts if there is no player.
     fun is_playing(kiosk: &Kiosk): bool {
-        assert!(has_player(kiosk), ENoPlayer);
+        assert!(has_character(kiosk), ENoPlayer);
         bag::contains(storage(kiosk), MatchKey {})
     }
 
@@ -544,7 +544,7 @@ module game::the_game {
     }
 
     /// Get a reference to the `Character` struct stored in the Extension.
-    fun player(kiosk: &Kiosk): &Character {
+    fun character(kiosk: &Kiosk): &Character {
         bag::borrow(ext::storage(Game {}, kiosk), CharacterKey {})
     }
 
@@ -557,7 +557,7 @@ module game::the_game {
     fun order(kiosk: &Kiosk): (address, u8, u8) {
         (
             object::id_to_address(&object::id(kiosk)),
-            stats::level(char::stats(player(kiosk))),
+            stats::level(char::stats(character(kiosk))),
             0
         )
     }

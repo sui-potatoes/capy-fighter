@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#[test_only]
 module game::pool_tests {
     use std::option;
     use sui::tx_context;

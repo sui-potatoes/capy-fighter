@@ -73,10 +73,14 @@ module pokemon::pokemon_v1 {
     /// This is the core calculation that is used by both physical and special
     /// damage calculations.
     ///
-    /// TODO: missing the effectiveness calculation.
-    /// TODO: missing the STAB calculation.
+    /// - [x] TODO: missing the effectiveness calculation.
+    /// - [x] TODO: missing the STAB calculation
     /// TODO: missing the critical hit calculation.
     /// TODO: missing the accuracy calculation.
+    ///
+    /// Resolution on todos:
+    /// the types are application specific, and the move information too, so we
+    /// can't really implement them here.
     fun damage(
         level: u64,
         attack: u64,

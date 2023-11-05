@@ -56,7 +56,7 @@ module game::character {
         _ctx: &mut TxContext
     ): Character {
         Character {
-            moves, // *vector::borrow(&STARTER_MOVES, (type as u64))
+            moves,
             stats: generate_stats(type, seed),
             banned_until: option::none(),
             rank: 1200,
@@ -117,6 +117,9 @@ module game::character {
 
     // === Reads ===
 
+    /// Get the XP of the `Character`.
+    public fun xp(self: &Character): u64 { self.xp }
+
     /// Get the stats of the `Character`.
     public fun stats(self: &Character): &Stats { &self.stats }
 
@@ -167,7 +170,7 @@ module game::character {
 
     /// Calculate a requirement for the level of the character.
     /// Formula: =INT((LEVEL * 1000 / EXP )^2 / 1000)
-    fun level_xp_requirement(level: u8): u64 {
+    public(friend) fun level_xp_requirement(level: u8): u64 {
         let level = (level as u64);
         let exp = 2;
         (level * 1000 / exp) * (level * 1000 / exp) / 1000
@@ -183,42 +186,5 @@ module game::character {
         }
     }
 
-    #[test]
-    /// Test the level xp requirement.
-    /// Compares the results against the formula and current setup.
-    fun test_level_xp_requirement() {
-        assert!(level_xp_requirement(1) == 250, 1);
-        assert!(level_xp_requirement(2) == 1000, 2);
-        assert!(level_xp_requirement(3) == 2250, 3);
-        assert!(level_xp_requirement(4) == 4000, 4);
-        assert!(level_xp_requirement(5) == 6250, 5);
-        assert!(level_xp_requirement(6) == 9000, 6);
-        assert!(level_xp_requirement(7) == 12250, 7);
-        assert!(level_xp_requirement(8) == 16000, 8);
-        assert!(level_xp_requirement(9) == 20250, 9);
-    }
-
-    #[test]
-    fun test_add_xp() {
-        let ctx = &mut sui::tx_context::dummy();
-        let character = new(
-            0,
-            vector[ 0, 0, 0, 0, 0, 0 ],
-            vector[ 0, 0, 0, 0, 0, 0 ],
-            ctx
-        );
-
-        assert!(stats::level(stats(&character)) == 1, 1);
-        assert!(character.xp == BASE_XP, 2);
-
-        add_xp(&mut character, 1000);
-
-        assert!(stats::level(stats(&character)) == 2, 3);
-        assert!(character.xp == 1000 + BASE_XP, 4);
-
-        add_xp(&mut character, 4000);
-
-        assert!(stats::level(stats(&character)) == 4, 5);
-        assert!(character.xp == 5000 + BASE_XP, 6);
-    }
+    #[test_only] friend game::character_tests;
 }
