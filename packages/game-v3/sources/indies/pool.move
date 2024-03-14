@@ -19,7 +19,6 @@
 /// - at some point any of them can run the "match" function to perform the
 ///  actual matching
 module game::pool {
-    use std::vector;
     use std::option::{Self, Option};
     use sui::tx_context::TxContext;
     use sui::object::{Self, UID};
@@ -60,64 +59,55 @@ module game::pool {
         tolerance: u8,
     ): Order {
         let order = Order { id, tolerance, value };
-        vector::push_back(&mut self.orders, order);
-        Order { id, tolerance, value } // copy the order
+        self.orders.push_back(order);
+        Order { id, tolerance, value } // "copy" the order
     }
 
     /// Revoke an already placed order.
-    public fun revoke_order(
-        self: &mut Pool,
-        order: Order,
-    ) {
-        let orders = &mut self.orders;
-        let (is_found, idx) = vector::index_of(orders, &order);
-
+    public fun revoke_order(self: &mut Pool, order: Order) {
+        let (is_found, idx) = self.orders.index_of(&order);
         if (is_found) {
-            vector::remove(orders, idx);
+            self.orders.remove(idx);
         }
     }
 
     /// Find a match in a Pool with given parameters.
-    public fun find_match(
-        self: &mut Pool,
-        order: &Order,
-    ): Option<address> {
-        let orders = &mut self.orders;
-        let (mut i, len) = (0, vector::length(orders));
-        let (is_found, idx) = vector::index_of(orders, order);
+    public fun find_match(self: &mut Pool, order: &Order): Option<address> {
+        let (mut i, len) = (0, self.orders.length());
+        let (is_found, idx) = self.orders.index_of(order);
         if (!is_found || len < 2) {
             return option::none()
         };
 
         let mut game = option::none();
-        let _player = vector::remove(orders, idx);
+        let _player = self.orders.remove(idx);
 
         // TODO: can fail if tolerance is set > 1
         // TODO: make sure negative tolerance does not underflow
         while (i < len) {
-            let search = vector::borrow(orders, i);
+            let search = self.orders.borrow(i);
             let exit_cond =
                 (
                     search.value == order.value ||
                     search.value <= (order.value + order.tolerance) ||
                     order.value >= (search.value + search.tolerance)
-                ) && option::is_none(&game);
+                ) && game.is_none();
 
             if (exit_cond) {
-                option::fill(&mut game, i);
+                game.fill(i);
                 break
             };
 
             i = i + 1;
         };
 
-        if (option::is_none(&game)) {
+        if (game.is_none()) {
             return option::none()
         };
 
         // first we need to remove the player from the pool
-        let game = option::extract(&mut game);
-        let game = vector::remove(orders, game);
+        let game = game.extract();
+        let game = self.orders.remove(game);
 
         option::some(game.id)
     }
@@ -125,5 +115,5 @@ module game::pool {
     // === Getters ===
 
     /// Public getter for the size of the Pool.
-    public fun size(self: &Pool): u64 { vector::length(&self.orders) }
+    public fun size(self: &Pool): u64 { self.orders.length() }
 }

@@ -10,7 +10,6 @@
 /// - banning and unbanning a character
 /// - adding experience to a character + level up
 module game::character {
-    use std::vector;
     use std::option::{Self, Option};
     use sui::clock::{Self, Clock};
     use sui::tx_context::TxContext;
@@ -68,7 +67,7 @@ module game::character {
 
     /// Ban the character for a certain amount of time;
     /// Is public and it's up to the game to decide when to ban a character.
-    public fun ban_character(
+    public fun ban(
         self: &mut Character,
         clock: &Clock,
         duration_minutes: u64,
@@ -102,9 +101,9 @@ module game::character {
 
         // Level up until we can't anymore; can be more than one level.
         while (self.xp >= next_level_req) {
-            stats::level_up(&mut self.stats);
+            self.stats.level_up();
 
-            my_level = stats::level(&self.stats);
+            my_level = self.stats.level();
             next_level_req = level_xp_requirement(my_level + 1);
         };
     }
@@ -147,6 +146,14 @@ module game::character {
         (level * level * 50) + 300
     }
 
+    /// Calculate a requirement for the level of the character.
+    /// Formula: =INT((LEVEL * 1000 / EXP )^2 / 1000)
+    public fun level_xp_requirement(level: u8): u64 {
+        let level = (level as u64);
+        let exp = 2;
+        (level * 1000 / exp) * (level * 1000 / exp) / 1000
+    }
+
     // === Internal ===
 
     /// Generate stats based on a seed; currently just a dummy-something to
@@ -157,23 +164,15 @@ module game::character {
         let level = 1;
 
         stats::new(
-            10 + smooth(*vector::borrow(&seed, 0)),
-            smooth(*vector::borrow(&seed, 1)),
-            smooth(*vector::borrow(&seed, 2)),
-            smooth(*vector::borrow(&seed, 3)),
-            smooth(*vector::borrow(&seed, 4)),
-            smooth(*vector::borrow(&seed, 5)),
+            10 + smooth(*seed.borrow(0)),
+            smooth(*seed.borrow(1)),
+            smooth(*seed.borrow(2)),
+            smooth(*seed.borrow(3)),
+            smooth(*seed.borrow(4)),
+            smooth(*seed.borrow(5)),
             level,
             vector[ type_ ]
         )
-    }
-
-    /// Calculate a requirement for the level of the character.
-    /// Formula: =INT((LEVEL * 1000 / EXP )^2 / 1000)
-    public(friend) fun level_xp_requirement(level: u8): u64 {
-        let level = (level as u64);
-        let exp = 2;
-        (level * 1000 / exp) * (level * 1000 / exp) / 1000
     }
 
     /// Smoothens out the value by making it closer to median = 50.
@@ -185,6 +184,4 @@ module game::character {
             value
         }
     }
-
-    #[test_only] friend game::character_tests;
 }

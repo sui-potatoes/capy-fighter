@@ -11,7 +11,6 @@
 /// the simplicity of the interface and the ability to upgrade the internals
 /// without worrying about the compatibility.
 module game::the_game {
-    use std::option;
     use sui::bcs;
     use sui::clock::Clock;
     use sui::bag::{Self, Bag};
@@ -19,10 +18,10 @@ module game::the_game {
     use sui::kiosk_extension as ext;
     use sui::object::{Self, UID};
     use sui::transfer::{Self, Receiving};
-    use sui::tx_context::{Self, TxContext};
+    use sui::tx_context::TxContext;
     use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
 
-    use pokemon::stats::{Self, Stats};
+    use pokemon::stats::Stats;
 
     use game::battle;
     use game::arena::{Self, Arena};
@@ -155,10 +154,10 @@ module game::the_game {
 
         // TODO: better randomness
         let moves = battle::starter_moves(type_);
-        let rand_source = bcs::to_bytes(&tx_context::fresh_object_address(ctx));
+        let rand_source = bcs::to_bytes(&ctx.fresh_object_address());
         let player = char::new(type_, moves, rand_source, ctx);
 
-        bag::add(storage_mut(kiosk), CharacterKey {}, player)
+        storage_mut(kiosk).add(CharacterKey {}, player)
     }
 
     // === Matchmaking ===
@@ -178,33 +177,32 @@ module game::the_game {
         assert!(!is_playing(kiosk), EPlayerIsPlaying);
 
         let (my_id, level, tolerance) = order(kiosk);
-        let pool_mut = pool_mut(game);
+        let pool = pool_mut(game);
 
-        let order = pool::submit_order(pool_mut, my_id, level, tolerance);
-        let match_ = pool::find_match(pool_mut, &order);
-        if (option::is_none(&match_)) {
-            bag::add(storage_mut(kiosk), MatchKey {}, order);
+        let order = pool.submit_order(my_id, level, tolerance);
+        let match_ = pool.find_match(&order);
+        if (match_.is_none()) {
+            storage_mut(kiosk).add(MatchKey {}, order);
             return
         };
 
         // the other player matched with us
-        let match_ = option::destroy_some(match_);
+        let match_ = match_.destroy_some();
         let (mut arena, player) = (arena::new(), character(kiosk));
 
-        assert!(!char::is_banned(player), EPlayerIsBanned);
+        assert!(!player.is_banned(), EPlayerIsBanned);
 
         // be nice and leave a note for the other player
         send_an_invite(my_id, match_, ctx);
 
-        arena::join(
-            &mut arena,
-            *char::stats(player),
-            char::moves(player),
+        arena.join(
+            *player.stats(),
+            player.moves(),
             my_id
         );
 
         // lastly, attach the Arena to another player's Kiosk
-        bag::add(storage_mut(kiosk), MatchKey {}, arena)
+        storage_mut(kiosk).add(MatchKey {}, arena)
     }
 
     /// Cancel the search for a match (if a match is still not found).
@@ -220,15 +218,15 @@ module game::the_game {
         _ctx: &mut TxContext
     ) {
         assert!(game.version == VERSION, EInvalidVersion);
-        assert!(kiosk::has_access(kiosk, cap), ENotOwner);
+        assert!(kiosk.has_access(cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
         assert!(has_character(kiosk), ENoPlayer);
         assert!(is_searching(kiosk), ENotSearching);
 
-        let pool_mut = pool_mut(game);
-        let order = bag::remove(storage_mut(kiosk), MatchKey {});
+        let pool = pool_mut(game);
+        let order = storage_mut(kiosk).remove(MatchKey {});
 
-        pool::revoke_order(pool_mut, order)
+        pool.revoke_order(order)
     }
 
     /// To join a Game the invited party needs to show an invite. To do so, the
@@ -257,15 +255,16 @@ module game::the_game {
         // so now we are "playing", we know where the other Kiosk is
         let my_storage = storage_mut(my_kiosk);
 
-        let _ = bag::remove<MatchKey, Order>(my_storage, MatchKey {});
-        bag::add(my_storage, MatchKey {}, destination);
+        let _ = my_storage.remove<MatchKey, Order>(MatchKey {});
+        my_storage.add(MatchKey {}, destination);
 
         let player = character(my_kiosk);
-        let stats = *char::stats(player);
-        let moves = char::moves(player);
-        let arena = arena_mut(host_kiosk);
 
-        arena::join(arena, stats, moves, my_id);
+        arena_mut(host_kiosk).join(
+            *player.stats(),
+            player.moves(),
+            my_id
+        );
     }
 
     /// Commit a Player's move in the Arena.
@@ -297,10 +296,10 @@ module game::the_game {
         let arena = arena_mut(host_kiosk);
         let player_id = id_from_cap(cap);
 
-        assert!(arena::has_character(arena, player_id), EWeDontKnowYou);
-        assert!(!arena::is_game_over(arena), EGameOver);
+        assert!(arena.has_character(player_id), EWeDontKnowYou);
+        assert!(!arena.is_game_over(), EGameOver);
 
-        arena::commit(arena, player_id, commitment)
+        arena.commit(player_id, commitment)
     }
 
     /// Reveal the committed move of the Player in the Arena.
@@ -333,15 +332,15 @@ module game::the_game {
         let arena = arena_mut(host_kiosk);
         let player_id = id_from_cap(cap);
 
-        assert!(arena::has_character(arena, player_id), EWeDontKnowYou);
-        assert!(!arena::is_game_over(arena), EGameOver);
+        assert!(arena.has_character(player_id), EWeDontKnowYou);
+        assert!(!arena.is_game_over(), EGameOver);
 
         // TODO: pass the rng_seed to the Arena
-        arena::reveal(arena, player_id, move_, salt, vector[ 0 ]);
+        arena.reveal(player_id, move_, salt, vector[ 0 ]);
 
         // TODO: consider early exit or automatic wrap up
-        let is_over = arena::is_game_over(arena);
-        if (is_over && kiosk::has_access(host_kiosk, cap)) {
+        let is_over = arena.is_game_over();
+        if (is_over && host_kiosk.has_access(cap)) {
             wrapup(host_kiosk, cap, ctx);
         }
     }
@@ -361,16 +360,16 @@ module game::the_game {
         ctx: &mut TxContext
     ) {
         assert!(has_arena(host_kiosk), ENoArena);
-        assert!(kiosk::has_access(host_kiosk, host_cap), ENotOwner);
+        assert!(host_kiosk.has_access(host_cap), ENotOwner);
 
-        let arena = bag::remove(storage_mut(host_kiosk), MatchKey {});
+        let arena: Arena = storage_mut(host_kiosk).remove(MatchKey {});
 
-        assert!(arena::is_game_over(&arena), EGameNotOver);
+        assert!(arena.is_game_over(), EGameNotOver);
 
-        let winner_id = arena::winner(&arena);
-        let (p1_stats, p2_stats) = arena::stats(&arena);
-        let host_id = arena::p1_id(&arena);
-        let guest_id = arena::p2_id(&arena);
+        let winner_id = arena.winner();
+        let (p1_stats, p2_stats) = arena.stats();
+        let host_id = arena.p1_id();
+        let guest_id = arena.p2_id();
 
         // applies results to the host + sends results to the guest player
         if (winner_id == id(host_kiosk)) {
@@ -396,24 +395,24 @@ module game::the_game {
         result: Receiving<Result>,
         _ctx: &mut TxContext
     ) {
-        assert!(kiosk::has_access(guest_kiosk, guest_cap), ENotOwner);
+        assert!(guest_kiosk.has_access(guest_cap), ENotOwner);
         assert!(is_playing(guest_kiosk), EPlayerIsPlaying);
 
-        let host_id = bag::remove(storage_mut(guest_kiosk), MatchKey {});
+        let host_id = storage_mut(guest_kiosk).remove(MatchKey {});
         let Result {
             id,
             has_won,
             opponent_stats,
             host_kiosk
         } = sui::transfer::receive(
-            kiosk::uid_mut_as_owner(guest_kiosk, guest_cap),
+            guest_kiosk.uid_mut_as_owner(guest_cap),
             result
         );
 
         assert!(host_kiosk == host_id, EWeDontKnowYou);
 
         apply_results(guest_kiosk, has_won, &opponent_stats);
-        object::delete(id);
+        id.delete()
     }
 
     // === Internal: Results ===
@@ -469,13 +468,13 @@ module game::the_game {
     /// Aborts if there is no player.
     fun is_playing(kiosk: &Kiosk): bool {
         assert!(has_character(kiosk), ENoPlayer);
-        bag::contains(storage(kiosk), MatchKey {})
+        storage(kiosk).contains(MatchKey {})
     }
 
     /// Check whether the player is currently searching for a match.
     /// Aborts if there is no player.
     fun is_searching(kiosk: &Kiosk): bool {
-        bag::contains_with_type<MatchKey, Order>(storage(kiosk), MatchKey {})
+        storage(kiosk).contains_with_type<MatchKey, Order>(MatchKey {})
     }
 
     // === Internal Storage: The Game ===
@@ -503,16 +502,14 @@ module game::the_game {
 
     /// Check whether this Kiosk has an Arena and therefore is the Host.
     fun has_arena(kiosk: &Kiosk): bool {
-        bag::contains_with_type<MatchKey, Arena>(
-            ext::storage(Game {}, kiosk),
-            MatchKey {}
-        )
+        ext::storage(Game {}, kiosk)
+            .contains_with_type<MatchKey, Arena>(MatchKey {})
     }
 
     /// Get a mutable reference to the Arena.
     /// Does not perform a check of existance, can abort when misused.
     fun arena_mut(kiosk: &mut Kiosk): &mut Arena {
-        bag::borrow_mut(ext::storage_mut(Game {}, kiosk), MatchKey {})
+        ext::storage_mut(Game {}, kiosk).borrow_mut(MatchKey {})
     }
 
     /// Leave a note to another player saying:
@@ -535,29 +532,29 @@ module game::the_game {
         invite: Receiving<Invite>
     ): address {
         let Invite { id, kiosk } = sui::transfer::receive(
-            kiosk::uid_mut_as_owner(kiosk, cap),
+            kiosk.uid_mut_as_owner(cap),
             invite
         );
 
-        object::delete(id);
+        id.delete();
         kiosk
     }
 
     /// Get a reference to the `Character` struct stored in the Extension.
     fun character(kiosk: &Kiosk): &Character {
-        bag::borrow(ext::storage(Game {}, kiosk), CharacterKey {})
+        ext::storage(Game {}, kiosk).borrow(CharacterKey {})
     }
 
     /// Get a mutable reference to the `Character` struct stored in the Extension.
     fun char_mut(kiosk: &mut Kiosk): &mut Character {
-        bag::borrow_mut(ext::storage_mut(Game {}, kiosk), CharacterKey {})
+        ext::storage_mut(Game {}, kiosk).borrow_mut(CharacterKey {})
     }
 
     /// Prepare the data to place an order for the current player.
     fun order(kiosk: &Kiosk): (address, u8, u8) {
         (
-            object::id_to_address(&object::id(kiosk)),
-            stats::level(char::stats(character(kiosk))),
+            id(kiosk),
+            character(kiosk).stats().level(),
             0
         )
     }
@@ -566,7 +563,7 @@ module game::the_game {
 
     /// The libs operate on just IDs, this function helps get them faster
     fun id(kiosk: &Kiosk): address {
-        object::id_to_address(&object::id(kiosk))
+        object::id(kiosk).id_to_address()
     }
 
     /// Get the address of the Kiosk from the `KioskOwnerCap`

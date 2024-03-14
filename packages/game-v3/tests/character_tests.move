@@ -4,7 +4,6 @@
 #[test_only]
 module game::character_tests {
     use game::character::{Self as char, stats};
-    use pokemon::stats;
 
     const BASE_XP: u64 = 250;
 
@@ -33,17 +32,17 @@ module game::character_tests {
             ctx
         );
 
-        assert!(stats::level(stats(&character)) == 1, 1);
-        assert!(char::xp(&character) == BASE_XP, 2);
+        assert!(character.stats().level() == 1, 1);
+        assert!(character.xp() == BASE_XP, 2);
 
-        char::add_xp(&mut character, 1000);
+        character.add_xp(1000);
 
-        assert!(stats::level(char::stats(&character)) == 2, 3);
-        assert!(char::xp(&character) == 1000 + BASE_XP, 4);
+        assert!(character.stats().level() == 2, 3);
+        assert!(character.xp() == 1000 + BASE_XP, 4);
 
-        char::add_xp(&mut character, 4000);
+        character.add_xp(4000);
 
-        assert!(stats::level(char::stats(&character)) == 4, 5);
-        assert!(char::xp(&character) == 5000 + BASE_XP, 6);
+        assert!(character.stats().level() == 4, 5);
+        assert!(character.xp() == 5000 + BASE_XP, 6);
     }
 }

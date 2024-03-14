@@ -13,10 +13,9 @@
 /// - Over: the game is over (one of the players joined)
 module game::arena {
     use std::option::{Self, Option};
-    use std::vector;
     use sui::hash::blake2b256;
 
-    use pokemon::stats::{Self, Stats};
+    use pokemon::stats::Stats;
     use game::battle;
 
     /// Trying to commit a move but the battle is over.
@@ -121,17 +120,13 @@ module game::arena {
 
     /// Commit a move for the given player (authorization is performed based on
     /// the `id` passed).
-    public fun commit(
-        self: &mut Arena,
-        id: address,
-        commitment: vector<u8>,
-    ) {
-        assert!(option::is_none(&self.winner), EWinnerAlreadySet);
+    public fun commit(self: &mut Arena, id: address, commitment: vector<u8>) {
+        assert!(self.winner.is_none(), EWinnerAlreadySet);
 
-        let (p1, _p2) = players_by_id(self, id);
-        assert!(option::is_none(&p1.commitment), ECommitmentAlreadySet);
+        let (p1, _p2) = self.players_by_id(id);
+        assert!(p1.commitment.is_none(), ECommitmentAlreadySet);
 
-        option::fill(&mut p1.commitment, commitment);
+        p1.commitment.fill(commitment);
     }
 
     /// Reveal a move for the given player (authorization is performed based on
@@ -143,20 +138,20 @@ module game::arena {
         salt: vector<u8>,
         rng_seed: vector<u8>,
     ) {
-        let (p1, p2) = players_by_id(self, id);
+        let (p1, p2) = self.players_by_id(id);
         let mut commitment = vector[ move_ ];
-        vector::append(&mut commitment, salt);
+        commitment.append(salt);
         let commitment = blake2b256(&commitment);
 
-        assert!(vector::contains(&p1.moves, &move_), EIllegalMove);
-        assert!(commitment == option::extract(&mut p1.commitment), EIncorrectReveal);
+        assert!(p1.moves.contains(&move_), EIllegalMove);
+        assert!(commitment == p1.commitment.extract(), EIncorrectReveal);
 
         // store the next Move for the last player to reveal and perform an attack.
-        option::fill(&mut p1.next_move, move_);
+        p1.next_move.fill(move_);
 
         // now do the math and update the stats
-        if (option::is_some(&p1.next_move) && option::is_some(&p2.next_move)) {
-            calculate_round(self, rng_seed)
+        if (p1.next_move.is_some() && p2.next_move.is_some()) {
+            self.calculate_round(rng_seed)
         };
     }
 
@@ -169,7 +164,7 @@ module game::arena {
 
     /// Getter for the winner. Fails if the game is not over yet.
     public fun winner(self: &Arena): address {
-        *option::borrow(&self.winner)
+        *self.winner.borrow()
     }
 
     /// Getter for the current round.
@@ -177,41 +172,41 @@ module game::arena {
 
     /// Internal: util to check whether the game has started already
     public fun game_started(self: &Arena): bool {
-        option::is_some(&self.p1) && option::is_some(&self.p2)
+        self.p1.is_some() && self.p2.is_some()
     }
 
     /// Getter for current player stats (changes every round).
     public fun stats(self: &Arena): (&Stats, &Stats) {
         (
-            &option::borrow(&self.p1).stats,
-            &option::borrow(&self.p2).stats,
+            &self.p1.borrow().stats,
+            &self.p2.borrow().stats,
         )
     }
 
     /// Getter for original players' stats (never changes).
     public fun original_stats(self: &Arena): (&Stats, &Stats) {
         (
-            &option::borrow(&self.p1).original_stats,
-            &option::borrow(&self.p2).original_stats,
+            &self.p1.borrow().original_stats,
+            &self.p2.borrow().original_stats,
         )
     }
 
     /// Return the attacker and defender in order based on the ID passed.
     public fun players_by_id(self: &mut Arena, id: address): (&mut ActivePlayer, &mut ActivePlayer) {
-        assert!(game_started(self), EArenaNotStarted);
+        assert!(self.game_started(), EArenaNotStarted);
 
-        let is_p1 = &option::borrow(&self.p1).id == &id;
-        let is_p2 = &option::borrow(&self.p2).id == &id;
+        let is_p1 = self.p1.borrow().id == &id;
+        let is_p2 = self.p2.borrow().id == &id;
 
         if (is_p1) {
             (
-                option::borrow_mut(&mut self.p1),
-                option::borrow_mut(&mut self.p2)
+                self.p1.borrow_mut(),
+                self.p2.borrow_mut()
             )
         } else if (is_p2) {
             (
-                option::borrow_mut(&mut self.p2),
-                option::borrow_mut(&mut self.p1)
+                self.p2.borrow_mut(),
+                self.p1.borrow_mut()
             )
         } else {
             abort EUnknownSender // we don't know who you are bruh
@@ -219,38 +214,38 @@ module game::arena {
     }
 
     public fun has_character(self: &Arena, id: address): bool {
-        let is_p1 = &option::borrow(&self.p1).id == &id;
-        let is_p2 = &option::borrow(&self.p2).id == &id;
+        let is_p1 = &self.p1.borrow().id == &id;
+        let is_p2 = &self.p2.borrow().id == &id;
 
         is_p1 || is_p2
     }
 
     /// Return the ID of the first player.
     public fun p1_id(self: &Arena): address {
-        option::borrow(&self.p1).id
+        self.p1.borrow().id
     }
 
     /// Return the ID of the second player.
     public fun p2_id(self: &Arena): address {
-        option::borrow(&self.p2).id
+        self.p2.borrow().id
     }
 
     // === Internal ===
 
     /// Return Pokemons based on their speed.
     fun by_speed(self: &mut Arena): (&mut ActivePlayer, &mut ActivePlayer) {
-        let p1_speed = stats::speed(&option::borrow(&self.p1).stats);
-        let p2_speed = stats::speed(&option::borrow(&self.p2).stats);
+        let p1_speed = self.p1.borrow().stats.speed();
+        let p2_speed = self.p2.borrow().stats.speed();
 
         if (p1_speed > p2_speed) {
             (
-                option::borrow_mut(&mut self.p1),
-                option::borrow_mut(&mut self.p2)
+                self.p1.borrow_mut(),
+                self.p2.borrow_mut()
             )
         } else {
             (
-                option::borrow_mut(&mut self.p2),
-                option::borrow_mut(&mut self.p1)
+                self.p2.borrow_mut(),
+                self.p1.borrow_mut()
             )
         }
     }
@@ -262,22 +257,22 @@ module game::arena {
 
         let mut history = *&self.history; // bypassing borrow checker
         let (p1, p2) = by_speed(self);
-        let p1_move = option::extract(&mut p1.next_move);
-        let p2_move = option::extract(&mut p2.next_move);
+        let p1_move = p1.next_move.extract();
+        let p2_move = p2.next_move.extract();
 
         // IN YOUR FACE ;)
         let (dmg, eff, stab) = battle::attack(
             &p1.stats, &mut p2.stats, (p1_move as u64), 255
         );
 
-        vector::push_back(&mut history, HitRecord {
+        history.push_back(HitRecord {
             effectiveness: eff,
             move_: p1_move,
             damage: dmg,
             stab,
         });
 
-        if (stats::hp(&p2.stats) == 0) {
+        if (p2.stats.hp() == 0) {
             self.winner = option::some(p1.id);
             self.history = history;
             return
@@ -287,14 +282,14 @@ module game::arena {
             &p2.stats, &mut p1.stats, (p2_move as u64), 255
         );
 
-        vector::push_back(&mut history, HitRecord {
+        history.push_back(HitRecord {
             effectiveness: eff,
             move_: p2_move,
             damage: dmg,
             stab,
         });
 
-        if (stats::hp(&p1.stats) == 0) {
+        if (p1.stats.hp() == 0) {
             self.winner = option::some(p2.id);
             self.history = history;
             return

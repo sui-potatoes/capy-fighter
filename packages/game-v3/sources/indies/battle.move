@@ -9,10 +9,8 @@
 /// Moves (indexed): Hydro Pump (0), Aqua Tail (1), Inferno (2), Flamethrower (3),
 ///                  Quake Strike (4), Earthquake (5), Gust (6), Air Slash (7).
 module game::battle {
-    use std::vector;
-
     use pokemon::pokemon_v1 as pokemon;
-    use pokemon::stats::{Self, Stats};
+    use pokemon::stats::Stats;
 
     /// Trying to use a non-existent Move (only use 0, 1, 2).
     const EWrongMove: u64 = 0;
@@ -96,8 +94,8 @@ module game::battle {
         let is_special = *MOVES_SPECIAL.borrow(move_);
 
         // Currently Capys only have 1 type. Pokemons can have up to 2 types.
-        let attacker_type = (*vector::borrow(&stats::types(attacker), 0) as u64);
-        let defender_type = (*vector::borrow(&stats::types(defender), 0) as u64);
+        let attacker_type = (*attacker.types().borrow(0) as u64);
+        let defender_type = (*defender.types().borrow(0) as u64);
 
         // Calculate the raw damage.
         let mut raw_damage = if (is_special) {
@@ -121,7 +119,7 @@ module game::battle {
         };
 
         // now apply the damage to the defender (can get to 0, safe operation)
-        stats::decrease_hp(defender, raw_damage);
+        defender.decrease_hp(raw_damage);
 
         (raw_damage, effectiveness, move_ == attacker_type)
     }
@@ -129,6 +127,6 @@ module game::battle {
     /// Returns the set of starter moves for the given type.
     public fun starter_moves(type_: u8): vector<u8> {
         assert!(type_ < 4, EWrongMove);
-        *vector::borrow(&STARTER_MOVES, (type_ as u64))
+        *STARTER_MOVES.borrow((type_ as u64))
     }
 }
