@@ -2,7 +2,7 @@
 
 [move]
 version = 0
-manifest_digest = "BA003164E7BC7EC4C2ECEAAE1A8E4E3591A30923D9E8BEA606F32F01DB39A8E3"
+manifest_digest = "50BB9EB43EE537463F5A7C954734DFAC7A9E9992DEE406808066EC0A78B1BA0C"
 deps_digest = "3C4103934B1E040BB6B23F1D610B4EF9F2F1166A50A104EADCF77467C004C600"
 
 dependencies = [
@@ -12,11 +12,11 @@ dependencies = [
 
 [[move.package]]
 name = "MoveStdlib"
-source = { git = "https://github.com/MystenLabs/sui.git", rev = "devnet", subdir = "crates/sui-framework/packages/move-stdlib" }
+source = { git = "https://github.com/MystenLabs/sui.git", rev = "ds/framework-2024", subdir = "crates/sui-framework/packages/move-stdlib" }
 
 [[move.package]]
 name = "Sui"
-source = { git = "https://github.com/MystenLabs/sui.git", rev = "devnet", subdir = "crates/sui-framework/packages/sui-framework" }
+source = { git = "https://github.com/MystenLabs/sui.git", rev = "ds/framework-2024", subdir = "crates/sui-framework/packages/sui-framework" }
 
 dependencies = [
   { name = "MoveStdlib" },
@@ -29,3 +29,8 @@ source = { local = "../pokemon" }
 dependencies = [
   { name = "Sui" },
 ]
+
+[move.toolchain-version]
+compiler-version = "1.21.0"
+edition = "legacy"
+flavor = "sui"

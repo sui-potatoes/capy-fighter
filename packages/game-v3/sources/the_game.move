@@ -70,7 +70,7 @@ module game::the_game {
 
     /// The game object is the central piece of application which currently acts
     /// as the data source for matchmaking and the version gating mechanism.
-    struct TheGame has key {
+    public struct TheGame has key {
         id: UID,
         /// Allows for version-gating the game.
         version: u16,
@@ -79,7 +79,7 @@ module game::the_game {
     // === Dynamic Field Keys ===
 
     /// The Dynamic Field Key for the Player.
-    struct CharacterKey has store, copy, drop {}
+    public struct CharacterKey has store, copy, drop {}
 
     /// The Dynamic Field Key for an active Match in the Arena. Whenever present
     /// it either points to a Kiosk that has a match running or stores an actual
@@ -89,14 +89,14 @@ module game::the_game {
     /// being punished for abandoning the match.
     ///
     /// The value stored under the `MatchKey` is an `Arena` or an `ID`.
-    struct MatchKey has store, copy, drop {}
+    public struct MatchKey has store, copy, drop {}
 
     // === Messages (TTO) ===
 
     /// A game invite for another player to join. By transferring this object
     /// to the other player's Kiosk, we avoid dynamic field creation and
     /// instead utilize the `transfer to object` feature.
-    struct Invite has key {
+    public struct Invite has key {
         id: UID,
         kiosk: address,
     }
@@ -104,7 +104,7 @@ module game::the_game {
     /// The result of the game that is sent to the guest player by the host.
     /// To continue playing they must claim the result and apply it to the
     /// Player. Sent and claimed via the `transfer to object` feature.
-    struct Result has key {
+    public struct Result has key {
         id: UID,
         has_won: bool,
         host_kiosk: address,
@@ -114,7 +114,7 @@ module game::the_game {
     // === Extension ===
 
     /// The Extension Witness.
-    struct Game has drop {}
+    public struct Game has drop {}
 
     /// Currently the game requires 0 permissions. However, we might reconsider
     /// once the items / boosts / perks system is up.
@@ -133,7 +133,7 @@ module game::the_game {
     /// Initialize the game: share the Game singleton for searching matches and
     /// attach a Pool to it.
     fun init(ctx: &mut TxContext) {
-        let id = object::new(ctx);
+        let mut id = object::new(ctx);
 
         df::add(&mut id, POOL_KEY, pool::new(ctx));
         transfer::share_object(TheGame { id, version: VERSION });
@@ -145,18 +145,18 @@ module game::the_game {
     entry fun new_character(
         kiosk: &mut Kiosk,
         cap: &KioskOwnerCap,
-        type: u8,
+        type_: u8,
         ctx: &mut TxContext
     ) {
-        assert!(type < 4, EInvalidUserType);
+        assert!(type_ < 4, EInvalidUserType);
         assert!(kiosk::has_access(kiosk, cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
         assert!(!has_character(kiosk), EPlayerAlreadyExists);
 
         // TODO: better randomness
-        let moves = battle::starter_moves(type);
+        let moves = battle::starter_moves(type_);
         let rand_source = bcs::to_bytes(&tx_context::fresh_object_address(ctx));
-        let player = char::new(type, moves, rand_source, ctx);
+        let player = char::new(type_, moves, rand_source, ctx);
 
         bag::add(storage_mut(kiosk), CharacterKey {}, player)
     }
@@ -181,20 +181,20 @@ module game::the_game {
         let pool_mut = pool_mut(game);
 
         let order = pool::submit_order(pool_mut, my_id, level, tolerance);
-        let match = pool::find_match(pool_mut, &order);
-        if (option::is_none(&match)) {
+        let match_ = pool::find_match(pool_mut, &order);
+        if (option::is_none(&match_)) {
             bag::add(storage_mut(kiosk), MatchKey {}, order);
             return
         };
 
         // the other player matched with us
-        let match = option::destroy_some(match);
-        let (arena, player) = (arena::new(), character(kiosk));
+        let match_ = option::destroy_some(match_);
+        let (mut arena, player) = (arena::new(), character(kiosk));
 
         assert!(!char::is_banned(player), EPlayerIsBanned);
 
         // be nice and leave a note for the other player
-        send_an_invite(my_id, match, ctx);
+        send_an_invite(my_id, match_, ctx);
 
         arena::join(
             &mut arena,
@@ -424,15 +424,15 @@ module game::the_game {
         has_won: bool,
         opponent_stats: &Stats
     ) {
-        let char_mut = char_mut(kiosk);
-        let xp = char::xp_for_level(char_mut, stats::level(opponent_stats));
+        let char = char_mut(kiosk);
+        let xp = char.xp_for_level(opponent_stats.level());
 
         if (has_won) {
-            char::add_win(char_mut);
-            char::add_xp(char_mut, xp);
+            char.add_win();
+            char.add_xp(xp);
         } else {
-            char::add_loss(char_mut);
-            char::add_xp(char_mut, xp / 5);
+            char.add_loss();
+            char.add_xp(xp / 5);
         }
     }
 

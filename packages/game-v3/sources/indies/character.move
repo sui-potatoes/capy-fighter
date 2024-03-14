@@ -29,7 +29,7 @@ module game::character {
 
     /// A Playable Character type; for now not protected (to not overcompilate
     /// things with generics) but should be.
-    struct Character has store, drop {
+    public struct Character has store, drop {
         /// The Pokemon stats for the Character.
         stats: Stats,
         /// Using this field to punish the character for bad behavior. Abandoning
@@ -50,14 +50,14 @@ module game::character {
 
     /// Create a new Character.
     public fun new(
-        type: u8,
+        type_: u8,
         moves: vector<u8>,
         seed: vector<u8>,
         _ctx: &mut TxContext
     ): Character {
         Character {
             moves,
-            stats: generate_stats(type, seed),
+            stats: generate_stats(type_, seed),
             banned_until: option::none(),
             rank: 1200,
             xp: BASE_XP,
@@ -97,8 +97,8 @@ module game::character {
     public fun add_xp(self: &mut Character, xp: u64) {
         self.xp = self.xp + xp;
 
-        let my_level = stats::level(&self.stats);
-        let next_level_req = level_xp_requirement(my_level + 1);
+        let mut my_level = stats::level(&self.stats);
+        let mut next_level_req = level_xp_requirement(my_level + 1);
 
         // Level up until we can't anymore; can be more than one level.
         while (self.xp >= next_level_req) {
@@ -153,7 +153,7 @@ module game::character {
     /// make sure we can assemble the game.
     ///
     /// Add Level Calculation here!
-    fun generate_stats(type: u8, seed: vector<u8>): Stats {
+    fun generate_stats(type_: u8, seed: vector<u8>): Stats {
         let level = 1;
 
         stats::new(
@@ -164,7 +164,7 @@ module game::character {
             smooth(*vector::borrow(&seed, 4)),
             smooth(*vector::borrow(&seed, 5)),
             level,
-            vector[ type ]
+            vector[ type_ ]
         )
     }
 

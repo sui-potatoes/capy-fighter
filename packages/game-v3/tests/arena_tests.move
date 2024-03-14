@@ -10,7 +10,7 @@ module game::arena_tests {
 
     #[test]
     fun test_p1_joined() {
-        let arena = arena::new();
+        let mut arena = arena::new();
         let (p1, id) = p1();
 
         arena::join(&mut arena, p1, vector[], id);
@@ -18,7 +18,7 @@ module game::arena_tests {
 
     #[test, expected_failure(abort_code = arena::ESamePlayer)]
     fun test_p1_join_twice_fail() {
-        let arena = arena::new();
+        let mut arena = arena::new();
         let (p1, id) = p1();
 
         arena::join(&mut arena, p1, vector[], id);
@@ -27,7 +27,7 @@ module game::arena_tests {
 
     #[test]
     fun test_p1_p2_battle() {
-        let arena = arena::new();
+        let mut arena = arena::new();
         let (p1_stats, p1) = p1();
         arena::join(&mut arena, p1_stats, vector[ 0, 1, 2, 3 ], p1);
 
@@ -61,7 +61,7 @@ module game::arena_tests {
     // === Utils ===
 
     fun commit(move_: u8, salt: vector<u8>): vector<u8> {
-        let commitment = vector[ move_ ];
+        let mut commitment = vector[ move_ ];
         vector::append(&mut commitment, salt);
         sui::hash::blake2b256(&commitment)
     }

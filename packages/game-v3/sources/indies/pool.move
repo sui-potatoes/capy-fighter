@@ -25,13 +25,13 @@ module game::pool {
     use sui::object::{Self, UID};
 
     /// The current orders pool.
-    struct Pool has key, store {
+    public struct Pool has key, store {
         id: UID,
         orders: vector<Order>,
     }
 
     /// Represents a single order in the pool.
-    struct Order has store, drop {
+    public struct Order has store, drop {
         id: address,
         value: u8,
         tolerance: u8,
@@ -83,13 +83,13 @@ module game::pool {
         order: &Order,
     ): Option<address> {
         let orders = &mut self.orders;
-        let (i, len) = (0, vector::length(orders));
+        let (mut i, len) = (0, vector::length(orders));
         let (is_found, idx) = vector::index_of(orders, order);
         if (!is_found || len < 2) {
             return option::none()
         };
 
-        let match = option::none();
+        let mut game = option::none();
         let _player = vector::remove(orders, idx);
 
         // TODO: can fail if tolerance is set > 1
@@ -101,25 +101,25 @@ module game::pool {
                     search.value == order.value ||
                     search.value <= (order.value + order.tolerance) ||
                     order.value >= (search.value + search.tolerance)
-                ) && option::is_none(&match);
+                ) && option::is_none(&game);
 
             if (exit_cond) {
-                option::fill(&mut match, i);
+                option::fill(&mut game, i);
                 break
             };
 
             i = i + 1;
         };
 
-        if (option::is_none(&match)) {
+        if (option::is_none(&game)) {
             return option::none()
         };
 
         // first we need to remove the player from the pool
-        let match = option::extract(&mut match);
-        let match = vector::remove(orders, match);
+        let game = option::extract(&mut game);
+        let game = vector::remove(orders, game);
 
-        option::some(match.id)
+        option::some(game.id)
     }
 
     // === Getters ===

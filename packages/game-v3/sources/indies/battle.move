@@ -1,6 +1,7 @@
 // Copyright (c) Mysten Labs, Inc.
 // SPDX-License-Identifier: Apache-2.0
 
+#[allow(implicit_const_copy)]
 /// The battle engine for the game.
 /// Contains Moves, their power, makes sure that the HP is decreased correctly.
 ///
@@ -90,16 +91,16 @@ module game::battle {
     ): (u64, u64, bool) {
         assert!(move_ < TOTAL_MOVES, EWrongMove);
 
-        let move_type = *vector::borrow(&MOVES_TYPES, move_);
-        let move_power = *vector::borrow(&MOVES_POWER, move_);
-        let is_special = *vector::borrow(&MOVES_SPECIAL, move_);
+        let move_type  = *MOVES_TYPES.borrow(move_);
+        let move_power = *MOVES_POWER.borrow(move_);
+        let is_special = *MOVES_SPECIAL.borrow(move_);
 
         // Currently Capys only have 1 type. Pokemons can have up to 2 types.
         let attacker_type = (*vector::borrow(&stats::types(attacker), 0) as u64);
         let defender_type = (*vector::borrow(&stats::types(defender), 0) as u64);
 
         // Calculate the raw damage.
-        let raw_damage = if (is_special) {
+        let mut raw_damage = if (is_special) {
             pokemon::special_damage(attacker, defender, move_power, rng)
         } else {
             pokemon::physical_damage(attacker, defender, move_power, rng)
@@ -108,8 +109,8 @@ module game::battle {
         // Get the effectiveness table for this specifc Move, then look up
         // defender's type in the table by index. That would be the TYPE1
         // modifier.
-        let move_effectiveness = *vector::borrow(&MOVES_EFFECTIVENESS, (move_type as u64));
-        let effectiveness = *vector::borrow(&move_effectiveness, defender_type);
+        let move_effectiveness = MOVES_EFFECTIVENESS.borrow((move_type as u64));
+        let effectiveness = *move_effectiveness.borrow(defender_type);
 
         // Effectiveness of a move against the type is calculated as:
         raw_damage = raw_damage * effectiveness / EFF_SCALING;
@@ -126,8 +127,8 @@ module game::battle {
     }
 
     /// Returns the set of starter moves for the given type.
-    public fun starter_moves(type: u8): vector<u8> {
-        assert!(type < 4, EWrongMove);
-        *vector::borrow(&STARTER_MOVES, (type as u64))
+    public fun starter_moves(type_: u8): vector<u8> {
+        assert!(type_ < 4, EWrongMove);
+        *vector::borrow(&STARTER_MOVES, (type_ as u64))
     }
 }

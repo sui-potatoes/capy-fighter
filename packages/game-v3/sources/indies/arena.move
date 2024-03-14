@@ -38,7 +38,7 @@ module game::arena {
 
     /// A Struct representing current player's state.
     /// As in: current move, next move, commitment etc
-    struct ActivePlayer has store, drop {
+    public struct ActivePlayer has store, drop {
         /// Address based identification is possible.
         id: address,
         /// List of allowed moves for the Player.
@@ -64,7 +64,7 @@ module game::arena {
     /// - no more UID, no IDs, no discovery = no TxContext dep
     /// - no authorization, no nothing = must be wrapped due to `store`
     /// - pure commit and pure reveal = auth is in the wrapper
-    struct Arena has store, drop {
+    public struct Arena has store, drop {
         /// Active Player stats for the first player to join.
         p1: Option<ActivePlayer>,
         /// Active Player stats for the second player to join.
@@ -80,7 +80,7 @@ module game::arena {
     }
 
     /// A Struct representing a single attack.
-    struct HitRecord has copy, store, drop {
+    public struct HitRecord has copy, store, drop {
         /// The move performed by the attacker.
         move_: u8,
         /// The damage dealt to the defender.
@@ -114,7 +114,7 @@ module game::arena {
         if (option::is_none(&self.p1)) {
             option::fill(&mut self.p1, new_player(stats, moves, id));
         } else {
-            assert!(&option::borrow(&mut self.p1).id != &id, ESamePlayer);
+            assert!(&option::borrow(&self.p1).id != &id, ESamePlayer);
             option::fill(&mut self.p2, new_player(stats, moves, id));
         }
     }
@@ -144,7 +144,7 @@ module game::arena {
         rng_seed: vector<u8>,
     ) {
         let (p1, p2) = players_by_id(self, id);
-        let commitment = vector[ move_ ];
+        let mut commitment = vector[ move_ ];
         vector::append(&mut commitment, salt);
         let commitment = blake2b256(&commitment);
 
@@ -260,7 +260,7 @@ module game::arena {
     fun calculate_round(self: &mut Arena, rng_seed: vector<u8>) {
         self.round = self.round + 1;
 
-        let history = *&self.history; // bypassing borrow checker
+        let mut history = *&self.history; // bypassing borrow checker
         let (p1, p2) = by_speed(self);
         let p1_move = option::extract(&mut p1.next_move);
         let p2_move = option::extract(&mut p2.next_move);

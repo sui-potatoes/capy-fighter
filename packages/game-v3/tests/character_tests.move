@@ -26,7 +26,7 @@ module game::character_tests {
     #[test]
     fun test_add_xp() {
         let ctx = &mut sui::tx_context::dummy();
-        let character = char::new(
+        let mut character = char::new(
             0,
             vector[ 0, 0, 0, 0, 0, 0 ],
             vector[ 0, 0, 0, 0, 0, 0 ],
