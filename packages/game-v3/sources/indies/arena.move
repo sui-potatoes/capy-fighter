@@ -110,11 +110,11 @@ module game::arena {
     ) {
         assert!(!game_started(self), EArenaAlreadyStarted);
 
-        if (option::is_none(&self.p1)) {
-            option::fill(&mut self.p1, new_player(stats, moves, id));
+        if (self.p1.is_none()) {
+            self.p1.fill(new_player(stats, moves, id));
         } else {
-            assert!(&option::borrow(&self.p1).id != &id, ESamePlayer);
-            option::fill(&mut self.p2, new_player(stats, moves, id));
+            assert!(self.p1.borrow().id != &id, ESamePlayer);
+            self.p2.fill(new_player(stats, moves, id));
         }
     }
 
@@ -256,7 +256,7 @@ module game::arena {
         self.round = self.round + 1;
 
         let mut history = *&self.history; // bypassing borrow checker
-        let (p1, p2) = by_speed(self);
+        let (p1, p2) = self.by_speed();
         let p1_move = p1.next_move.extract();
         let p2_move = p2.next_move.extract();
 

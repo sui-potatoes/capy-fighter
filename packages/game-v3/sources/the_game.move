@@ -568,6 +568,47 @@ module game::the_game {
 
     /// Get the address of the Kiosk from the `KioskOwnerCap`
     fun id_from_cap(cap: &KioskOwnerCap): address {
-        object::id_to_address(&kiosk::kiosk_owner_cap_for(cap))
+        cap.kiosk_owner_cap_for().id_to_address()
+    }
+
+    // === Testing ===
+
+    #[test_only]
+    /// Create a new game for testing purposes.
+    public fun new_game_for_testing(ctx: &mut TxContext): TheGame {
+        let mut id = object::new(ctx);
+        df::add(&mut id, POOL_KEY, pool::new(ctx));
+        TheGame { id, version: VERSION }
+    }
+
+    #[test_only]
+    /// Join the game for testing purposes.
+    /// Current testing infrastructure does not support TTO yet.
+    public fun join_for_testing(
+        my_kiosk: &mut Kiosk,
+        _my_kiosk_cap: &KioskOwnerCap,
+        host_kiosk: &mut Kiosk,
+        destination: address,
+        _ctx: &mut TxContext
+    ) {
+        let my_id = id(my_kiosk);
+
+        assert!(destination == id(host_kiosk), EWeDontKnowYou);
+        assert!(is_searching(my_kiosk), ENotInvited);
+        assert!(has_arena(host_kiosk), ENoArena);
+
+        // so now we are "playing", we know where the other Kiosk is
+        let my_storage = storage_mut(my_kiosk);
+
+        let _ = my_storage.remove<MatchKey, Order>(MatchKey {});
+        my_storage.add(MatchKey {}, destination);
+
+        let player = character(my_kiosk);
+
+        arena_mut(host_kiosk).join(
+            *player.stats(),
+            player.moves(),
+            my_id
+        );
     }
 }

@@ -38,15 +38,15 @@ module game::arena_tests {
         arena.commit(p2, commit(2, b"Inferno"));
 
         // p1 reveals first
-        arena::reveal(&mut arena, p1, 0, b"Hydro Pump", vector[]);
+        arena.reveal(p1, 0, b"Hydro Pump", vector[]);
         assert!(arena.round() == 0, 0);
 
         // make sure that that the round got bumped on second reveal
-        arena::reveal(&mut arena, p2, 2, b"Inferno", vector[]);
+        arena.reveal(p2, 2, b"Inferno", vector[]);
         assert!(arena.round() == 1, 0);
 
         // checking stats; we expect that the HP of both players is reduced
-        let (p1_stats_active, p2_stats_active) = arena::stats(&arena);
+        let (p1_stats_active, p2_stats_active) = arena.stats();
 
         assert!(p1_stats.hp() > p1_stats_active.hp(), 0);
         assert!(p2_stats.hp() > p2_stats_active.hp(), 0);
