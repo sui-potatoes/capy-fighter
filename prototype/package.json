@@ -17,6 +17,7 @@
     "blake2b": "^2.1.4",
     "commander": "^11.0.0",
     "dotenv": "^16.3.1",
-    "inquirer": "^9.2.10"
+    "inquirer": "^9.2.10",
+    "react-router-dom": "^6.18.0"
   }
 }

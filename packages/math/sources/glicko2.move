@@ -63,16 +63,16 @@ module math::glicko2 {
     ): u64 {
 
         let mu_sub = signed_sub(mu, mu_j);
-        let exp_sign = (mu_sub.sign == false); // -g and -mu_sub -> +
-        let exp_value = gamma(phi_j) * mu_sub.value;
+        let _exp_sign = (mu_sub.sign == false); // -g and -mu_sub -> +
+        let _exp_value = gamma(phi_j) * mu_sub.value;
 
         // SCALING / 1 + math::exp();
 
 
 
-        std::debug::print(&vector[ g, sub.value ]);
+        // std::debug::print(&vector[ g, sub.value ]);
 
-        sub.value
+        mu_sub.value
     }
 
     /// Internal: returns the absolute difference between two values and the

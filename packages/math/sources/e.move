@@ -5,13 +5,13 @@ module math::e {
     /// Euler's number, the base of the natural logarithm.
     const E: u64 = 2718281828459045235;
 
-    const LOG_E: u64 = ;
+    
 
     /// Number of powers of ten that fit in a u256.
     const DECIMALS: u8 = 19;
 
     /// Scaling can be between 0 and 75.
-    const EInvalidScaling: u64 = 0;
+    // const EInvalidScaling: u64 = 0;
 
     /// Returns Euler's number with the given scaling factor.
     /// `0` for 2 (no decimals)
