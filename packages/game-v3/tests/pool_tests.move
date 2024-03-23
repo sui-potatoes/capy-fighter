@@ -55,9 +55,10 @@ module game::pool_tests {
         let ctx = &mut tx_context::dummy();
         let mut pool = pool::new(ctx);
 
+        // address, value, tolerance
         let _order_1 = pool.submit_order(@0x1, 1, 1);
         let order_2 = pool.submit_order(@0x2, 2, 0);
-        let search = pool::find_match(&mut pool, &order_2);
+        let search = pool.find_match(&order_2);
 
         assert!(pool.size() == 0, 0);
         assert!(search.is_some(), 1);

@@ -12,9 +12,7 @@
 /// - Started: both players joined
 /// - Over: the game is over (one of the players joined)
 module game::arena {
-    use std::option::{Self, Option};
     use sui::hash::blake2b256;
-
     use pokemon::stats::Stats;
     use game::battle;
 

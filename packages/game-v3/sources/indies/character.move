@@ -10,10 +10,7 @@
 /// - banning and unbanning a character
 /// - adding experience to a character + level up
 module game::character {
-    use std::option::{Self, Option};
-    use sui::clock::{Self, Clock};
-    use sui::tx_context::TxContext;
-
+    use sui::clock::{Clock};
     use pokemon::stats::{Self, Stats};
 
     /// The median value for stats.
@@ -73,10 +70,10 @@ module game::character {
         duration_minutes: u64,
         _ctx: &mut TxContext
     ) {
-        assert!(option::is_none(&self.banned_until), EStillBanned);
+        assert!(self.banned_until.is_none(), EStillBanned);
 
-        let banned_until = clock::timestamp_ms(clock) + duration_minutes * 60 * 1000;
-        self.banned_until = option::some(banned_until);
+        let banned_until = clock.timestamp_ms() + duration_minutes * 60 * 1000;
+        self.banned_until.fill(banned_until);
     }
 
     /// Remove the ban once the time has passed; requires a manual action from
@@ -88,8 +85,8 @@ module game::character {
     ) {
         assert!(option::is_some(&self.banned_until), ENotBanned);
 
-        let banned_until = option::extract(&mut self.banned_until);
-        assert!(clock::timestamp_ms(clock) >= banned_until, ENotBanned);
+        let banned_until = self.banned_until.extract();
+        assert!(clock.timestamp_ms() >= banned_until, ENotBanned);
     }
 
     /// Add experience to the character. Level up if possible.
@@ -132,9 +129,7 @@ module game::character {
     public fun banned_until(self: &Character): Option<u64> { self.banned_until }
 
     /// Check if the character is banned.
-    public fun is_banned(self: &Character): bool {
-        option::is_some(&self.banned_until)
-    }
+    public fun is_banned(self: &Character): bool { self.banned_until.is_some() }
 
     // === Utils ===
 
@@ -164,12 +159,12 @@ module game::character {
         let level = 1;
 
         stats::new(
-            10 + smooth(*seed.borrow(0)),
-            smooth(*seed.borrow(1)),
-            smooth(*seed.borrow(2)),
-            smooth(*seed.borrow(3)),
-            smooth(*seed.borrow(4)),
-            smooth(*seed.borrow(5)),
+            smooth(seed[0]) + 10,
+            smooth(seed[1]),
+            smooth(seed[2]),
+            smooth(seed[3]),
+            smooth(seed[4]),
+            smooth(seed[5]),
             level,
             vector[ type_ ]
         )

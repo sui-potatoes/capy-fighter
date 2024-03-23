@@ -16,10 +16,8 @@ module game::the_game {
     use sui::bag::{Self, Bag};
     use sui::dynamic_field as df;
     use sui::kiosk_extension as ext;
-    use sui::object::{Self, UID};
-    use sui::transfer::{Self, Receiving};
-    use sui::tx_context::TxContext;
-    use sui::kiosk::{Self, Kiosk, KioskOwnerCap};
+    use sui::transfer::Receiving;
+    use sui::kiosk::{Kiosk, KioskOwnerCap};
 
     use pokemon::stats::Stats;
 
@@ -148,7 +146,7 @@ module game::the_game {
         ctx: &mut TxContext
     ) {
         assert!(type_ < 4, EInvalidUserType);
-        assert!(kiosk::has_access(kiosk, cap), ENotOwner);
+        assert!(kiosk.has_access(cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
         assert!(!has_character(kiosk), EPlayerAlreadyExists);
 
@@ -168,10 +166,11 @@ module game::the_game {
         game: &mut TheGame,
         kiosk: &mut Kiosk,
         cap: &KioskOwnerCap,
+        _clock: &Clock,
         ctx: &mut TxContext
     ) {
         assert!(game.version == VERSION, EInvalidVersion);
-        assert!(kiosk::has_access(kiosk, cap), ENotOwner);
+        assert!(kiosk.has_access(cap), ENotOwner);
         assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
         assert!(has_character(kiosk), ENoPlayer);
         assert!(!is_playing(kiosk), EPlayerIsPlaying);
@@ -180,7 +179,7 @@ module game::the_game {
         let pool = pool_mut(game);
 
         let order = pool.submit_order(my_id, level, tolerance);
-        let match_ = pool.find_match(&order);
+        let match_ = pool.find_match(&order, b"todo: random_seed");
         if (match_.is_none()) {
             storage_mut(kiosk).add(MatchKey {}, order);
             return

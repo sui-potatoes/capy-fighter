@@ -14,20 +14,20 @@ module game::the_game_tests {
         let ctx = &mut test.next_tx(@0x1);
         let clock = test.clock(0, ctx);
         let mut game = test.new_game(ctx);
+        let (mut p1, mut p2) = (test.new_player(ctx), test.new_player(ctx));
 
         // Install the game for the first player.
-        test.p1().install(ctx);
-        test.p1().new_character(ctx);
-        test.p1().play(&mut game, ctx);
+        p1.install(ctx);
+        p1.new_character(ctx);
+        p1.play(&mut game, ctx);
 
         // Install the game for the second player.
-        test.p2().install(ctx);
-        test.p2().new_character(ctx);
-        test.p2().play(&mut game, ctx);
+        p2.install(ctx);
+        p2.new_character(ctx);
+        p2.play(&mut game, ctx);
 
         // Host is the second player since it matches with the first order.
-        let host = test.p2().id();
-        let (p1, p2) = test.players();
+        let host = p2.id();
 
         // Join the game started by the first player.
         game::join_for_testing(
@@ -35,25 +35,14 @@ module game::the_game_tests {
             &mut p2.kiosk, host, ctx
         );
 
-        // p1.commit(&p1.cap, 1, &clock, ctx);
-        // p2.commit(&p2.cap, 2, &clock, ctx);
-
-        // Play the game. (TODO: commit happens in the host kiosk, using the other player's cap)
-        // test.p1().commit(1, &clock, ctx);
-        // test.p2().commit(2, &clock, ctx);
-
-        // test.p1().reveal(1, &clock, ctx);
-        // test.p2().reveal(2, &clock, ctx);
-
-        test.destroy(game).destroy(clock);
-        test.drop();
+        test.destroy(game).destroy(clock).destroy(vector[p1, p2]);
     }
 
     // === Player Setup ===
 
     public struct Player {
-        kiosk: Kiosk,
-        cap: KioskOwnerCap,
+        kiosk: Option<Kiosk>,
+        cap: Option<KioskOwnerCap>,
     }
 
     public fun id(self: &Player): address {
@@ -104,24 +93,19 @@ module game::the_game_tests {
     // === Test Runner ===
 
     /// A test runner to generate transactions.
-    public struct TestRunner {
+    public struct TestRunner has drop {
         seq: u64,
-        p1: Player,
-        p2: Player,
     }
 
     /// Creates a new test runner to generate transactions.
     public fun new(): TestRunner {
+        TestRunner { seq: 1 }
+    }
 
-        let ctx = &mut tx_context::new_from_hint(@0x0, 0, 0, 0, 0);
-        let (kiosk_1, cap_1) = kiosk::new(ctx);
-        let (kiosk_2, cap_2) = kiosk::new(ctx);
-
-        TestRunner {
-            seq: 1,
-            p1: Player { kiosk: kiosk_1, cap: cap_1 },
-            p2: Player { kiosk: kiosk_2, cap: cap_2 },
-        }
+    /// Creates a new player.
+    public fun new_player(_: &TestRunner, ctx: &mut TxContext): Player {
+        let (kiosk, cap) = kiosk::new(ctx);
+        Player { kiosk, cap }
     }
 
     /// Returns the clock with the given time.
@@ -135,12 +119,6 @@ module game::the_game_tests {
     // public fun game(self: &mut TestRunner): &mut TheGame { &mut self.game }
     public fun new_game(_self: &TestRunner, ctx: &mut TxContext): TheGame {
         game::new_game_for_testing(ctx)
-    }
-
-    public fun p1(self: &mut TestRunner): &mut Player { &mut self.p1 }
-    public fun p2(self: &mut TestRunner): &mut Player { &mut self.p2 }
-    public fun players(self: &mut TestRunner): (&mut Player, &mut Player) {
-        (&mut self.p1, &mut self.p2)
     }
 
     /// Destroys any object.
@@ -158,24 +136,5 @@ module game::the_game_tests {
             self.seq,
             0, 0, 0
         )
-    }
-
-    public fun drop(self: TestRunner) {
-        let TestRunner {
-            seq: _,
-            p1: Player {
-                kiosk: kiosk_1,
-                cap: cap_1,
-            },
-            p2: Player {
-                kiosk: kiosk_2,
-                cap: cap_2
-            }
-        } = self;
-
-        test_utils::destroy(kiosk_1);
-        test_utils::destroy(cap_1);
-        test_utils::destroy(kiosk_2);
-        test_utils::destroy(cap_2);
     }
 }

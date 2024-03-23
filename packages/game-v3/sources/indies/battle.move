@@ -89,13 +89,13 @@ module game::battle {
     ): (u64, u64, bool) {
         assert!(move_ < TOTAL_MOVES, EWrongMove);
 
-        let move_type  = *MOVES_TYPES.borrow(move_);
-        let move_power = *MOVES_POWER.borrow(move_);
-        let is_special = *MOVES_SPECIAL.borrow(move_);
+        let move_type  = MOVES_TYPES[move_];
+        let move_power = MOVES_POWER[move_];
+        let is_special = MOVES_SPECIAL[move_];
 
         // Currently Capys only have 1 type. Pokemons can have up to 2 types.
-        let attacker_type = (*attacker.types().borrow(0) as u64);
-        let defender_type = (*defender.types().borrow(0) as u64);
+        let attacker_type = (attacker.types()[0] as u64);
+        let defender_type = (defender.types()[0] as u64);
 
         // Calculate the raw damage.
         let mut raw_damage = if (is_special) {
@@ -107,8 +107,8 @@ module game::battle {
         // Get the effectiveness table for this specifc Move, then look up
         // defender's type in the table by index. That would be the TYPE1
         // modifier.
-        let move_effectiveness = MOVES_EFFECTIVENESS.borrow((move_type as u64));
-        let effectiveness = *move_effectiveness.borrow(defender_type);
+        let move_effectiveness = MOVES_EFFECTIVENESS[(move_type as u64)];
+        let effectiveness = move_effectiveness[defender_type];
 
         // Effectiveness of a move against the type is calculated as:
         raw_damage = raw_damage * effectiveness / EFF_SCALING;
@@ -127,6 +127,6 @@ module game::battle {
     /// Returns the set of starter moves for the given type.
     public fun starter_moves(type_: u8): vector<u8> {
         assert!(type_ < 4, EWrongMove);
-        *STARTER_MOVES.borrow((type_ as u64))
+        STARTER_MOVES[(type_ as u64)]
     }
 }

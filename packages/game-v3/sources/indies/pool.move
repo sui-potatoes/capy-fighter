@@ -19,10 +19,6 @@
 /// - at some point any of them can run the "match" function to perform the
 ///  actual matching
 module game::pool {
-    use std::option::{Self, Option};
-    use sui::tx_context::TxContext;
-    use sui::object::{Self, UID};
-
     /// The current orders pool.
     public struct Pool has key, store {
         id: UID,
@@ -72,42 +68,51 @@ module game::pool {
     }
 
     /// Find a match in a Pool with given parameters.
-    public fun find_match(self: &mut Pool, order: &Order): Option<address> {
+    ///
+    /// The `seed` parameter is used to randomize the search, the source must be
+    /// non-deterministic to prevent front-running attacks.
+    public fun find_match(
+        self: &mut Pool,
+        order: &Order,
+        seed: vector<u8>,
+    ): Option<address> {
         let (mut i, len) = (0, self.orders.length());
         let (is_found, idx) = self.orders.index_of(order);
         if (!is_found || len < 2) {
             return option::none()
         };
 
-        let mut game = option::none();
+        let mut matches = vector[];
         let _player = self.orders.remove(idx);
 
         // TODO: can fail if tolerance is set > 1
-        // TODO: make sure negative tolerance does not underflow
         while (i < len) {
-            let search = self.orders.borrow(i);
-            let exit_cond =
-                (
-                    search.value == order.value ||
-                    search.value <= (order.value + order.tolerance) ||
-                    order.value >= (search.value + search.tolerance)
-                ) && game.is_none();
+            let search = &self.orders[i];
+            let match_cond = (
+                search.value == order.value ||
+                search.value <= (order.value + order.tolerance) ||
+                order.value >= (search.value + search.tolerance)
+            );
 
-            if (exit_cond) {
-                game.fill(i);
-                break
+            if (match_cond) {
+                matches.push_back(i)
             };
 
             i = i + 1;
         };
 
-        if (game.is_none()) {
+        // exit early if there are no games to match with
+        if (matches.length() == 0) {
             return option::none()
         };
 
-        // first we need to remove the player from the pool
-        let game = game.extract();
-        let game = self.orders.remove(game);
+        // if we have multiple matches, we need to pick one
+        let rnd = sui::address::to_u256(sui::address::from_bytes(
+            sui::hash::blake2b256(&seed)
+        ));
+
+        let idx = rnd % (matches.length() as u256);
+        let game = self.orders.remove(matches[idx]);
 
         option::some(game.id)
     }
