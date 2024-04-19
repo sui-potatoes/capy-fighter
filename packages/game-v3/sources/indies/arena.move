@@ -250,7 +250,7 @@ module game::arena {
 
     /// The most important function - calculates the round result and updates
     /// the stats + round. Defines the winner if there is.
-    fun calculate_round(self: &mut Arena, rng_seed: vector<u8>) {
+    fun calculate_round(self: &mut Arena, _rng_seed: vector<u8>) {
         self.round = self.round + 1;
 
         let mut history = *&self.history; // bypassing borrow checker
@@ -289,8 +289,6 @@ module game::arena {
 
         if (p1.stats.hp() == 0) {
             self.winner = option::some(p2.id);
-            self.history = history;
-            return
         };
 
         self.history = history;

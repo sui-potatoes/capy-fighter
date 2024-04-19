@@ -10,7 +10,7 @@
 /// - banning and unbanning a character
 /// - adding experience to a character + level up
 module game::character {
-    use sui::clock::{Clock};
+    use sui::clock::Clock;
     use pokemon::stats::{Self, Stats};
 
     /// The median value for stats.
@@ -28,8 +28,8 @@ module game::character {
     public struct Character has store, drop {
         /// The Pokemon stats for the Character.
         stats: Stats,
-        /// Using this field to punish the character for bad behavior. Abandoning
-        /// the match or cheating will result in a ban.
+        /// Using this field to punish the character for bad behavior.
+        /// Abandoning the match or cheating will result in a ban.
         banned_until: Option<u64>,
         /// The moves of the character; max 4.
         /// Currently assigned based on the type of the character.
@@ -93,7 +93,7 @@ module game::character {
     public fun add_xp(self: &mut Character, xp: u64) {
         self.xp = self.xp + xp;
 
-        let mut my_level = stats::level(&self.stats);
+        let mut my_level = self.stats.level();
         let mut next_level_req = level_xp_requirement(my_level + 1);
 
         // Level up until we can't anymore; can be more than one level.

@@ -7,7 +7,6 @@
 module game::prelude {
     use sui::kiosk_test_utils::{Self as test};
     use sui::kiosk::{Kiosk, KioskOwnerCap};
-    use sui::tx_context::{Self, TxContext};
 
     // use game::the_game;
 

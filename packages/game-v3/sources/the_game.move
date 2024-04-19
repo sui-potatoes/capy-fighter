@@ -119,7 +119,7 @@ module game::the_game {
 
     /// Install the game in the user Kiosk; a necessary step to allow all the
     /// other operations in the game.
-    entry fun install(
+    public fun install(
         kiosk: &mut Kiosk,
         cap: &KioskOwnerCap,
         ctx: &mut TxContext
@@ -147,15 +147,15 @@ module game::the_game {
     ) {
         assert!(type_ < 4, EInvalidUserType);
         assert!(kiosk.has_access(cap), ENotOwner);
-        assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
-        assert!(!has_character(kiosk), EPlayerAlreadyExists);
+        assert!(kiosk.has_game_installed(), EExtensionNotInstalled);
+        assert!(!kiosk.has_character(), EPlayerAlreadyExists);
 
         // TODO: better randomness
         let moves = battle::starter_moves(type_);
         let rand_source = bcs::to_bytes(&ctx.fresh_object_address());
         let player = char::new(type_, moves, rand_source, ctx);
 
-        storage_mut(kiosk).add(CharacterKey {}, player)
+        kiosk.state().add(CharacterKey {}, player)
     }
 
     // === Matchmaking ===
@@ -171,23 +171,23 @@ module game::the_game {
     ) {
         assert!(game.version == VERSION, EInvalidVersion);
         assert!(kiosk.has_access(cap), ENotOwner);
-        assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
-        assert!(has_character(kiosk), ENoPlayer);
-        assert!(!is_playing(kiosk), EPlayerIsPlaying);
+        assert!(kiosk.has_game_installed(), EExtensionNotInstalled);
+        assert!(kiosk.has_character(), ENoPlayer);
+        assert!(!kiosk.is_playing(), EPlayerIsPlaying);
 
         let (my_id, level, tolerance) = order(kiosk);
-        let pool = pool_mut(game);
+        let pool = game.pool_mut();
 
         let order = pool.submit_order(my_id, level, tolerance);
         let match_ = pool.find_match(&order, b"todo: random_seed");
         if (match_.is_none()) {
-            storage_mut(kiosk).add(MatchKey {}, order);
+            kiosk.state().add(MatchKey {}, order);
             return
         };
 
         // the other player matched with us
         let match_ = match_.destroy_some();
-        let (mut arena, player) = (arena::new(), character(kiosk));
+        let (mut arena, player) = (arena::new(), kiosk.character());
 
         assert!(!player.is_banned(), EPlayerIsBanned);
 
@@ -201,7 +201,7 @@ module game::the_game {
         );
 
         // lastly, attach the Arena to another player's Kiosk
-        storage_mut(kiosk).add(MatchKey {}, arena)
+        kiosk.state().add(MatchKey {}, arena)
     }
 
     /// Cancel the search for a match (if a match is still not found).
@@ -218,12 +218,12 @@ module game::the_game {
     ) {
         assert!(game.version == VERSION, EInvalidVersion);
         assert!(kiosk.has_access(cap), ENotOwner);
-        assert!(ext::is_installed<Game>(kiosk), EExtensionNotInstalled);
-        assert!(has_character(kiosk), ENoPlayer);
-        assert!(is_searching(kiosk), ENotSearching);
+        assert!(kiosk.has_game_installed(), EExtensionNotInstalled);
+        assert!(kiosk.has_character(), ENoPlayer);
+        assert!(kiosk.is_searching(), ENotSearching);
 
-        let pool = pool_mut(game);
-        let order = storage_mut(kiosk).remove(MatchKey {});
+        let pool = game.pool_mut();
+        let order = kiosk.state().remove(MatchKey {});
 
         pool.revoke_order(order)
     }
@@ -244,22 +244,20 @@ module game::the_game {
         invite: Receiving<Invite>,
         _ctx: &mut TxContext
     ) {
-        let my_id = id(my_kiosk);
+        let my_id = my_kiosk.id();
         let destination = take_a_note(my_kiosk, my_kiosk_cap, invite);
 
-        assert!(destination == id(host_kiosk), EWeDontKnowYou);
-        assert!(is_searching(my_kiosk), ENotInvited);
-        assert!(has_arena(host_kiosk), ENoArena);
+        assert!(destination == host_kiosk.id(), EWeDontKnowYou);
+        assert!(my_kiosk.is_searching(), ENotInvited);
+        assert!(host_kiosk.has_arena(), ENoArena);
 
         // so now we are "playing", we know where the other Kiosk is
-        let my_storage = storage_mut(my_kiosk);
+        let _: Order = my_kiosk.state().remove(MatchKey {});
+        my_kiosk.state().add(MatchKey {}, destination);
 
-        let _ = my_storage.remove<MatchKey, Order>(MatchKey {});
-        my_storage.add(MatchKey {}, destination);
+        let player = my_kiosk.character();
 
-        let player = character(my_kiosk);
-
-        arena_mut(host_kiosk).join(
+        host_kiosk.arena().join(
             *player.stats(),
             player.moves(),
             my_id
@@ -290,9 +288,9 @@ module game::the_game {
         _clock: &Clock,
         _ctx: &mut TxContext
     ) {
-        assert!(has_arena(host_kiosk), ENoArena);
+        assert!(host_kiosk.has_arena(), ENoArena);
 
-        let arena = arena_mut(host_kiosk);
+        let arena = host_kiosk.arena();
         let player_id = id_from_cap(cap);
 
         assert!(arena.has_character(player_id), EWeDontKnowYou);
@@ -326,9 +324,9 @@ module game::the_game {
         _clock: &Clock,
         ctx: &mut TxContext
     ) {
-        assert!(has_arena(host_kiosk), ENoArena);
+        assert!(host_kiosk.has_arena(), ENoArena);
 
-        let arena = arena_mut(host_kiosk);
+        let arena = host_kiosk.arena();
         let player_id = id_from_cap(cap);
 
         assert!(arena.has_character(player_id), EWeDontKnowYou);
@@ -358,10 +356,10 @@ module game::the_game {
         host_cap: &KioskOwnerCap,
         ctx: &mut TxContext
     ) {
-        assert!(has_arena(host_kiosk), ENoArena);
+        assert!(host_kiosk.has_arena(), ENoArena);
         assert!(host_kiosk.has_access(host_cap), ENotOwner);
 
-        let arena: Arena = storage_mut(host_kiosk).remove(MatchKey {});
+        let arena: Arena = host_kiosk.state().remove(MatchKey {});
 
         assert!(arena.is_game_over(), EGameNotOver);
 
@@ -397,13 +395,13 @@ module game::the_game {
         assert!(guest_kiosk.has_access(guest_cap), ENotOwner);
         assert!(is_playing(guest_kiosk), EPlayerIsPlaying);
 
-        let host_id = storage_mut(guest_kiosk).remove(MatchKey {});
+        let host_id = guest_kiosk.state().remove(MatchKey {});
         let Result {
             id,
             has_won,
             opponent_stats,
             host_kiosk
-        } = sui::transfer::receive(
+        } = transfer::receive(
             guest_kiosk.uid_mut_as_owner(guest_cap),
             result
         );
@@ -422,7 +420,7 @@ module game::the_game {
         has_won: bool,
         opponent_stats: &Stats
     ) {
-        let char = char_mut(kiosk);
+        let char = kiosk.character();
         let xp = char.xp_for_level(opponent_stats.level());
 
         if (has_won) {
@@ -455,7 +453,24 @@ module game::the_game {
     // what does it mean to win? when the host can claim and destruct
     // the match the host gets the rebate;
 
+    // === Aliases (all private) ===
+
+    use fun has_game_installed as Kiosk.has_game_installed;
+    use fun storage_mut as Kiosk.state;
+    use fun has_arena as Kiosk.has_arena;
+    use fun arena_mut as Kiosk.arena;
+    use fun char_mut as Kiosk.character;
+    use fun has_character as Kiosk.has_character;
+    use fun is_playing as Kiosk.is_playing;
+    use fun is_searching as Kiosk.is_searching;
+    use fun id as Kiosk.id;
+
     // === Internal Reads ===
+
+    /// Check if the Kiosk has the game installed.
+    fun has_game_installed(kiosk: &Kiosk): bool {
+        ext::is_installed<Game>(kiosk) && ext::is_enabled<Game>(kiosk)
+    }
 
     /// Check if the Kiosk has a player.
     fun has_character(kiosk: &Kiosk): bool {
@@ -466,7 +481,7 @@ module game::the_game {
     /// Check whether the player is currently playing.
     /// Aborts if there is no player.
     fun is_playing(kiosk: &Kiosk): bool {
-        assert!(has_character(kiosk), ENoPlayer);
+        assert!(kiosk.has_character(), ENoPlayer);
         storage(kiosk).contains(MatchKey {})
     }
 
@@ -530,7 +545,7 @@ module game::the_game {
         cap: &KioskOwnerCap,
         invite: Receiving<Invite>
     ): address {
-        let Invite { id, kiosk } = sui::transfer::receive(
+        let Invite { id, kiosk } = transfer::receive(
             kiosk.uid_mut_as_owner(cap),
             invite
         );
@@ -594,12 +609,12 @@ module game::the_game {
 
         assert!(destination == id(host_kiosk), EWeDontKnowYou);
         assert!(is_searching(my_kiosk), ENotInvited);
-        assert!(has_arena(host_kiosk), ENoArena);
+        assert!(host_kiosk.has_arena(), ENoArena);
 
         // so now we are "playing", we know where the other Kiosk is
-        let my_storage = storage_mut(my_kiosk);
+        let my_storage = my_kiosk.state();
 
-        let _ = my_storage.remove<MatchKey, Order>(MatchKey {});
+        let _: Order = my_storage.remove(MatchKey {});
         my_storage.add(MatchKey {}, destination);
 
         let player = character(my_kiosk);
